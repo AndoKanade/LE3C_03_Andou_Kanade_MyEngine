@@ -16,6 +16,9 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{436aae08-4a93-4ff9-93c6-2e3053c39372}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\shader">
+      <UniqueIdentifier>{6cb2f2c7-2335-4542-9244-0fa7568a7588}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -44,9 +47,15 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="resource\shader\Object3d.PS.hlsl" />
-    <None Include="resource\shader\Object3d.VS.hlsl" />
-    <None Include="resource\shader\Object3d.hlsli" />
+    <None Include="resource\shader\Object3d.hlsli">
+      <Filter>リソース ファイル\shader</Filter>
+    </None>
+    <None Include="resource\shader\Object3d.PS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </None>
+    <None Include="resource\shader\Object3d.VS.hlsl">
+      <Filter>リソース ファイル\shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
