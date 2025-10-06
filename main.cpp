@@ -1238,7 +1238,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   materialDataSprite->uvTransform = MakeIdentity4x4();
 
 #pragma endregion
-
 #pragma region directionalLight
 
   Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource =
@@ -1595,6 +1594,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
   SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
+
   bool hasPlayed = false;
 
 #pragma endregion
