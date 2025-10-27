@@ -4,7 +4,7 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
   HRESULT result;
 
 #pragma region DirectInputの初期化
-  IDirectInput8 *directInput = nullptr;
+  Microsoft::WRL::ComPtr<IDirectInput8> directInput = nullptr;
 
   result = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
                               (void **)&directInput, nullptr);
@@ -12,8 +12,6 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
 #pragma endregion
 
 #pragma region キーボードの初期化
-  IDirectInputDevice8 *keyboard = nullptr;
-
   result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
   assert(SUCCEEDED(result));
 
@@ -27,4 +25,8 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd) {
 #pragma endregion
 }
 
-void Input::Update() {}
+void Input::Update() {
+  keyboard->Acquire();
+  BYTE key[256] = {};
+  keyboard->GetDeviceState(sizeof(key), key);
+}

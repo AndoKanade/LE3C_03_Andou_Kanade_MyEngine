@@ -2030,13 +2030,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       *wvpData = {worldViewProjectionMatrix, worldMatrix};
 
 #pragma endregion
+      input->Update();
 
-      keyboard->Acquire();
-      BYTE key[256] = {};
-      keyboard->GetDeviceState(sizeof(key), key);
-      if (key[DIK_SPACE]) {
-        OutputDebugStringA("Hit space\n");
-      }
+      //if (key[DIK_SPACE]) {
+      //  OutputDebugStringA("Hit space\n");
+      //}
 
       ///================================
       /// 描画処理
