@@ -1442,15 +1442,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   resterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 #pragma endregion
 
-#pragma region shaderをコンパイルする
+#pragma region shaderをコンパイルする   
 
   Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
-      CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils.Get(),
+      CompileShader(L"Object3D.VS.hlsl", L"vs_6_0", dxcUtils.Get(),
                     dxcCompiler.Get(), includeHandler);
   assert(vertexShaderBlob != nullptr);
 
   Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob =
-      CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils.Get(),
+      CompileShader(L"Object3D.PS.hlsl", L"ps_6_0", dxcUtils.Get(),
                     dxcCompiler.Get(), includeHandler);
   assert(pixelShaderBlob != nullptr);
 
