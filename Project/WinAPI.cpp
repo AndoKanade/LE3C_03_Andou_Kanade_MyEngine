@@ -38,3 +38,9 @@ void WinAPI::Initialize() {
   ShowWindow(hwnd, SW_SHOW);
 }
 void WinAPI::Update() {}
+
+void WinAPI::Finalize() {
+  CloseWindow(hwnd);
+
+  CoUninitialize();
+}

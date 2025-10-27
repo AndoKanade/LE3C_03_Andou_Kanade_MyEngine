@@ -1046,6 +1046,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
   WinAPI *winApi = nullptr;
 
+  Input *input = nullptr;
+
   Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
   Microsoft::WRL::ComPtr<ID3D12Device> device;
 
@@ -1864,10 +1866,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-  Input *input = nullptr;
-
   input = new Input();
-  input->Initialize(winApi->GetHinstance(), winApi->GetHwnd());
+  input->Initialize(winApi);
 
   SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
   bool hasPlayed = false;
@@ -2183,14 +2183,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 #endif
 #pragma endregion
   delete winApi;
+
   delete input;
+  input = nullptr;
+
   xAudio2.Reset();
   SoundUnload(&soundData);
 
   CloseHandle(fenceEvent);
-  CloseWindow(winApi->GetHwnd());
 
-  CoUninitialize();
+  winApi->Finalize();
+
+  winApi = nullptr;
 
   return 0;
 }
