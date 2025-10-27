@@ -2032,9 +2032,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 #pragma endregion
       input->Update();
 
-      //if (key[DIK_SPACE]) {
-      //  OutputDebugStringA("Hit space\n");
-      //}
+      if (input->TriggerKey(DIK_SPACE)) {
+        OutputDebugStringA("Trigger space\n");
+      }
 
       ///================================
       /// 描画処理
