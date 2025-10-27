@@ -20,6 +20,7 @@
 #include <wrl.h>
 #include <xaudio2.h>
 #define DRECTINPUT_VERSION 0x0800 // DirectInput version 8.0
+#include "Input.h"
 #include <dinput.h>
 
 #include "externals/DirectXTex/DirectXTex.h"
@@ -1444,13 +1445,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 #pragma region shaderをコンパイルする
 
   Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
-      CompileShader(L"resource/shader/Object3d.VS.hlsl", L"vs_6_0", dxcUtils.Get(),
-                    dxcCompiler.Get(), includeHandler);
+      CompileShader(L"resource/shader/Object3d.VS.hlsl", L"vs_6_0",
+                    dxcUtils.Get(), dxcCompiler.Get(), includeHandler);
   assert(vertexShaderBlob != nullptr);
 
   Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob =
-      CompileShader(L"resource/shader/Object3d.PS.hlsl", L"ps_6_0", dxcUtils.Get(),
-                    dxcCompiler.Get(), includeHandler);
+      CompileShader(L"resource/shader/Object3d.PS.hlsl", L"ps_6_0",
+                    dxcUtils.Get(), dxcCompiler.Get(), includeHandler);
   assert(pixelShaderBlob != nullptr);
 
 #pragma endregion
@@ -1849,33 +1850,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   assert(SUCCEEDED(result));
 #pragma endregion
 
-#pragma region DirectInputの初期化
-  IDirectInput8 *directInput = nullptr;
-  WindowData w = {};
-
-  w.hInstance = hInstance;
-
-  result =
-      DirectInput8Create(w.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8,
-                         (void **)&directInput, nullptr);
-  assert(SUCCEEDED(result));
-#pragma endregion
-
-#pragma region キーボードの初期化
-  IDirectInputDevice8 *keyboard = nullptr;
-
-  result = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
-  assert(SUCCEEDED(result));
-
-  result = keyboard->SetDataFormat(&c_dfDIKeyboard);
-  assert(SUCCEEDED(result));
-
-  result = keyboard->SetCooperativeLevel(
-      hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-  assert(SUCCEEDED(result));
-
-#pragma endregion
-
 #pragma region 変数宣言
   Transform transform{
       {1.0f, 1.0f, 1.0f},
@@ -1915,6 +1889,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   bool useMonsterBall = false;
 
 #pragma endregion
+
+  Input *input = nullptr;
+
+  input = new Input();
+  input->Initialize(hInstance, hwnd);
 
   SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
   bool hasPlayed = false;
@@ -2229,7 +2208,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #endif
 #pragma endregion
-
+  delete input;
   xAudio2.Reset();
   SoundUnload(&soundData);
 
