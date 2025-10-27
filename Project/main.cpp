@@ -412,6 +412,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
   shaderSourceBuffer.Encoding = DXC_CP_UTF8;
 #pragma endregion
 
+
 #pragma region コンパイルする
 
   LPCWSTR arguments[] = {
