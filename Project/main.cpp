@@ -1060,6 +1060,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   winApi = new WinAPI();
   winApi->Initialize();
 
+  input = new Input();
+  input->Initialize(winApi);
+
+  SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
+  bool hasPlayed = false;
+
 #pragma region ログ
 
   std::filesystem::create_directory("logs");
@@ -1866,20 +1872,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-  input = new Input();
-  input->Initialize(winApi);
-
-  SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
-  bool hasPlayed = false;
-
 #pragma endregion
-  MSG msg{};
-  while (msg.message != WM_QUIT) {
+  while (true) {
 
-    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
+    if (winApi->ProcessMessage()) {
+      /// trueを返したときはゲームループを抜ける
+      break;
     } else {
       // ゲームの処理
 
@@ -2182,7 +2180,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #endif
 #pragma endregion
-  delete winApi;
 
   delete input;
   input = nullptr;
@@ -2193,7 +2190,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   CloseHandle(fenceEvent);
 
   winApi->Finalize();
-
+  delete winApi;
   winApi = nullptr;
 
   return 0;

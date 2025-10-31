@@ -17,7 +17,6 @@ LRESULT CALLBACK WinAPI::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
 void WinAPI::Initialize() {
 
   HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-  WNDCLASS wc{};
 
   wc.lpfnWndProc = WindowProc;
   wc.lpszClassName = L"CG2WindowClass";
@@ -38,6 +37,23 @@ void WinAPI::Initialize() {
   ShowWindow(hwnd, SW_SHOW);
 }
 void WinAPI::Update() {}
+
+bool WinAPI::ProcessMessage() {
+
+  MSG msg{};
+
+  if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+  }
+
+  if (msg.message == WM_QUIT) {
+
+    return true;
+  }
+
+  return false;
+}
 
 void WinAPI::Finalize() {
   CloseWindow(hwnd);
