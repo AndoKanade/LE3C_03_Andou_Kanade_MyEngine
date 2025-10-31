@@ -320,3 +320,5 @@ DirectXGame/imgui.ini
 
 *.log
 /logs
+
+imgui.ini
