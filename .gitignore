@@ -318,7 +318,8 @@ DirectXGame/imgui.ini
 **/DirectXTex/Shaders/Compiled/
 /Dumps/2025-0416-1627.dmp
 
+imgui.ini
+
 *.log
 /logs
 
-imgui.ini
