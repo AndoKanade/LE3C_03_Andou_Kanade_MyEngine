@@ -24,7 +24,7 @@ public:
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = nullptr;
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = nullptr;
 
-  Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers[2] = {nullptr};
+  std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> backBuffers;
   D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
 
   void Initialize(WinAPI *winApi);
@@ -42,4 +42,22 @@ public:
 
 private:
   WinAPI *winApi_ = nullptr;
+
+  static D3D12_CPU_DESCRIPTOR_HANDLE
+  GetCPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
+                         uint32_t descriptorSize, uint32_t index) {
+    D3D12_CPU_DESCRIPTOR_HANDLE handleCPU =
+        descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    handleCPU.ptr += descriptorSize * index;
+    return handleCPU;
+  }
+
+  static D3D12_GPU_DESCRIPTOR_HANDLE
+  GetGPUDscriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
+                        uint32_t descriptorSize, uint32_t index) {
+    D3D12_GPU_DESCRIPTOR_HANDLE handleGPU =
+        descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+    handleGPU.ptr += descriptorSize * index;
+    return handleGPU;
+  }
 };
