@@ -1,13 +1,13 @@
 #define _USE_MATH_DEFINES
 #define PI 3.14159265f
+#include "DXCommon.h"
 #include "Input.h"
+#include "StringUtility.h"
 #include "WinAPI.h"
 #include <chrono>
 #include <cmath>
-#include <d3d12.h>
 #include <dbghelp.h>
 #include <dxcapi.h>
-#include <dxgi1_6.h>
 #include <dxgidebug.h>
 #include <filesystem>
 #include <format>
@@ -30,8 +30,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
                                                              WPARAM wParam,
                                                              LPARAM lPalam);
 
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "Dbghelp.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
@@ -297,43 +295,6 @@ void SoundPlayWave(IXAudio2 *xAudio2, const SoundData &soundData) {
 
 #pragma endregion
 
-#pragma region ConvertString関数
-std::wstring ConvertString(const std::string &str) {
-  if (str.empty()) {
-    return std::wstring();
-  }
-
-  auto sizeNeeded =
-      MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char *>(&str[0]),
-                          static_cast<int>(str.size()), NULL, 0);
-  if (sizeNeeded == 0) {
-    return std::wstring();
-  }
-  std::wstring result(sizeNeeded, 0);
-  MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char *>(&str[0]),
-                      static_cast<int>(str.size()), &result[0], sizeNeeded);
-  return result;
-}
-
-std::string ConvertString(const std::wstring &str) {
-  if (str.empty()) {
-    return std::string();
-  }
-
-  auto sizeNeeded =
-      WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()),
-                          NULL, 0, NULL, NULL);
-  if (sizeNeeded == 0) {
-    return std::string();
-  }
-  std::string result(sizeNeeded, 0);
-  WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()),
-                      result.data(), sizeNeeded, NULL, NULL);
-  return result;
-}
-
-#pragma endregion
-
 #pragma region log関数
 
 // ログファイルの方
@@ -390,8 +351,8 @@ Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
     IDxcIncludeHandler *includeHandler) {
 
 #pragma region HLSLファイルを読み込む
-  Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}\n",
-                                filePath, profile)));
+  Log(StringUtility::ConvertString(std::format(
+      L"Begin CompileShader, path:{}, profile:{}\n", filePath, profile)));
 
   Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
   HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr,
@@ -455,35 +416,13 @@ Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
   assert(SUCCEEDED(hr));
 
   // 成功したらログを出す
-  Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}\n",
-                                filePath, profile)));
+  Log(StringUtility::ConvertString(std::format(
+      L"Compile Succeeded, path:{}, profile:{}\n", filePath, profile)));
 
   // コンパイル結果を返す
   return shaderBlob;
 
 #pragma endregion
-}
-
-#pragma endregion
-
-#pragma region DescriptorHeap関数
-
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>
-CreateDiscriptorHeap(const Microsoft::WRL::ComPtr<ID3D12Device> &device,
-                     D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors,
-                     bool shaderVisible) {
-  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;
-  D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
-  descriptorHeapDesc.Type = heapType;
-  descriptorHeapDesc.NumDescriptors = numDescriptors;
-  descriptorHeapDesc.Flags = shaderVisible
-                                 ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-                                 : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-  HRESULT hr = device->CreateDescriptorHeap(&descriptorHeapDesc,
-                                            IID_PPV_ARGS(&descriptorHeap));
-  assert(SUCCEEDED(hr));
-
-  return descriptorHeap;
 }
 
 #pragma endregion
@@ -518,50 +457,13 @@ CreateBufferResource(const Microsoft::WRL::ComPtr<ID3D12Device> &device,
 
 #pragma endregion
 
-#pragma region DepthStencilTexture関数
-
-Microsoft::WRL::ComPtr<ID3D12Resource>
-CreateDepthStencilResource(const Microsoft::WRL::ComPtr<ID3D12Device> &device,
-                           int32_t width, int32_t height) {
-  // 生成するResourceの設定
-  D3D12_RESOURCE_DESC resourceDesc{};
-
-  resourceDesc.Width = width;
-  resourceDesc.Height = height;
-  resourceDesc.MipLevels = 1;
-  resourceDesc.DepthOrArraySize = 1;
-  resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-  resourceDesc.SampleDesc.Count = 1;
-  resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-  resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-  // 利用するheapの設定
-  D3D12_HEAP_PROPERTIES heapProperties{};
-
-  heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-  D3D12_CLEAR_VALUE depthClearValue{};
-
-  depthClearValue.DepthStencil.Depth = 1.0f;
-  depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-  Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-
-  HRESULT hr = device->CreateCommittedResource(
-      &heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-      D3D12_RESOURCE_STATE_COPY_DEST, &depthClearValue,
-      IID_PPV_ARGS(&resource));
-  assert(SUCCEEDED(hr));
-  return resource;
-}
-
 #pragma endregion
 
 #pragma region Texture関数
 
 DirectX::ScratchImage LoadTexture(const std::string &filePath) {
   DirectX::ScratchImage image{};
-  std::wstring filePathW = ConvertString(filePath);
+  std::wstring filePathW = StringUtility::ConvertString(filePath);
   HRESULT hr = DirectX::LoadFromWICFile(
       filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
   assert(SUCCEEDED(hr));
@@ -1048,8 +950,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
   Input *input = nullptr;
 
-  Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
-  Microsoft::WRL::ComPtr<ID3D12Device> device;
+  DXCommon *dxCommon = nullptr;
+  dxCommon = new DXCommon();
+  // dxCommon->Initialize(winApi);
 
   Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
   IXAudio2MasteringVoice *masterVoice;
@@ -1066,200 +969,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
   bool hasPlayed = false;
 
-#pragma region ログ
-
-  std::filesystem::create_directory("logs");
-  // 現在時刻を取得(ロンドン時刻)
-  std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-
-  // ログファイルの名前を秒に変換
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>
-      nowSeconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
-
-  // 日本時間に変換
-  std::chrono::zoned_time localTime{std::chrono::current_zone(), nowSeconds};
-
-  // formatを使って年月火_時分秒に変換
-  std::string dateString = std::format("{:%Y%m%d_%H%M%S}", localTime);
-
-  // 時刻を使ってファイル名を決定
-  std::string logFilePath = std::string("logs/") + dateString + ".log";
-
-  // ファイルを作って書き込み準備
-  std::ofstream logStream(logFilePath);
-#pragma endregion
-
-#pragma region デバッグレイヤー
-
-#ifdef _DEBUG
-
-  Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
-    // デバッグレイヤーを有効にする
-    debugController->EnableDebugLayer();
-
-    // GPUでもチェックするようにする
-    debugController->SetEnableGPUBasedValidation(TRUE);
-  }
-#endif
-
-#pragma endregion
-
-#pragma region DXGIFactoryの作成
-  //  Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
-
-  HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
-
-  assert(SUCCEEDED(hr));
-
-#pragma endregion
-
-#pragma region 使用するGPUを決める
-  // 使用するアダプターの変数、最初はnullptrを入れておく
-  Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter = nullptr;
-
-  // 良い順にアダプターを頼む
-  for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(
-                       i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                       IID_PPV_ARGS(&useAdapter)) != DXGI_ERROR_NOT_FOUND;
-       i++) {
-
-    // アダプターの情報を取得する
-    DXGI_ADAPTER_DESC3 adapterDesc{};
-
-    hr = useAdapter->GetDesc3(&adapterDesc);
-    assert(SUCCEEDED(hr));
-
-    // ソフトウェアアダプター出なければ採用
-    if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) {
-      Log(logStream, std::format("Use Adapter : {}\n",
-                                 ConvertString(adapterDesc.Description)));
-      break;
-    }
-    useAdapter = nullptr;
-  }
-
-  // 適切なアダプターが見つからなかったら起動しない
-
-  assert(useAdapter != nullptr);
-#pragma endregion
-
-#pragma region D3D12Deviceの作成
-  // Microsoft::WRL::ComPtr<ID3D12Device> device = nullptr;
-  //  機能レベルとログ出力用の文字列
-  D3D_FEATURE_LEVEL featureLevels[] = {
-
-      D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
-
-  const char *featureLevelStrings[] = {"12.2", "12.1", "12.0"};
-
-  // 高い順に生成できるか試していく
-  for (size_t i = 0; i < _countof(featureLevels); i++) {
-    hr = D3D12CreateDevice(useAdapter.Get(), featureLevels[i],
-                           IID_PPV_ARGS(&device));
-
-    if (SUCCEEDED(hr)) {
-      // 生成できたのでループを抜ける
-      Log(logStream,
-          std::format("FeatureLevels : {}\n", featureLevelStrings[i]));
-      break;
-    }
-  }
-
-  // 生成がうまくいかなかったので起動しない
-  assert(SUCCEEDED(hr));
-  Log("Complete create D3D12Device!!\n");
-
-#pragma endregion
-
-#pragma region コマンドキューの作成
-
-  Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
-  D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
-  hr = device->CreateCommandQueue(&commandQueueDesc,
-                                  IID_PPV_ARGS(&commandQueue));
-
-  // コマンドキューの生成に失敗したら起動しない
-  assert(SUCCEEDED(hr));
-
-  // コマンドアロケータの生成
-  Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator = nullptr;
-  hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                      IID_PPV_ARGS(&commandAllocator));
-
-  // コマンドリストを生成する
-  Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList = nullptr;
-  hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                 commandAllocator.Get(), nullptr,
-                                 IID_PPV_ARGS(&commandList));
-  // コマンドリストの生成に失敗したら起動しない
-  assert(SUCCEEDED(hr));
-
-  Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
-  DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
-  swapChainDesc.Width = WinAPI::kCliantWidth;
-  swapChainDesc.Height = WinAPI::kCliantHeight;
-  swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-  swapChainDesc.SampleDesc.Count = 1;
-  swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swapChainDesc.BufferCount = 2;
-  swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
-  // コマンドキュー、ウィンドウハンドル、スワップチェインの設定
-
-  hr = dxgiFactory->CreateSwapChainForHwnd(
-      commandQueue.Get(), winApi->GetHwnd(), &swapChainDesc, nullptr, nullptr,
-      reinterpret_cast<IDXGISwapChain1 **>(swapChain.GetAddressOf()));
-  // スワップチェインの生成に失敗したら起動しない
-  assert(SUCCEEDED(hr));
-
-#pragma endregion
-
-#pragma region DescriptorHeapの作成
-
-  // ディスクリプタヒープの生成
-  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap =
-      CreateDiscriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
-
-  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap =
-      CreateDiscriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 28,
-                           true);
-
-  /// DSVの生成
-  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap =
-      CreateDiscriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
-
-  // swapChainからResourceを取得する
-  Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
-  hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
-  assert(SUCCEEDED(hr));
-  hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResources[1]));
-  assert(SUCCEEDED(hr));
-
-  // RenderTargetViewを生成する
-  D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-  rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-  rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-  // ディスクリプターの先頭を取得
-  D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle =
-      rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  // RTVを2つ作るのでディスクリプターを2つ用意
-  D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
-
-  // 1つめを作る
-  rtvHandles[0] = rtvStartHandle;
-  device->CreateRenderTargetView(swapChainResources[0].Get(), &rtvDesc,
-                                 rtvHandles[0]);
-  // 2つめを作る
-  rtvHandles[1].ptr =
-      rtvHandles[0].ptr +
-      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-  device->CreateRenderTargetView(swapChainResources[1].Get(), &rtvDesc,
-                                 rtvHandles[1]);
-
-#pragma endregion
 
 #pragma region DepthStencil
 
@@ -1512,14 +1221,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-#pragma region DepthStencillTextureを生成する
-
-  Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource =
-      CreateDepthStencilResource(device, WinAPI::kCliantWidth,
-                                 WinAPI::kCliantHeight);
-
-#pragma endregion
-
 #pragma region MaterialResource
 
   Microsoft::WRL::ComPtr<ID3D12Resource> materialResource =
@@ -1650,17 +1351,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-#pragma region DescriptorSizeの取得
-
-  const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(
-      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-  const uint32_t descriptorSizeRTV =
-      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-  const uint32_t descriptorSizeDSV =
-      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-#pragma endregion
 
 #pragma region SRVを生成する
 
@@ -2180,6 +1870,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #endif
 #pragma endregion
+
+  delete dxCommon;
+  dxCommon = nullptr;
 
   delete input;
   input = nullptr;
