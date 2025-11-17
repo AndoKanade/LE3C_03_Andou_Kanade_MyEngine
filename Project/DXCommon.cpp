@@ -1,10 +1,17 @@
 #include "DXCommon.h"
 #include "Logger.h"
 #include "StringUtility.h"
+#include "externals/imgui/imgui_impl_dx12.h"
+#include "externals/imgui/imgui_impl_win32.h"
 #include <cassert>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
+                                                             UINT msg,
+                                                             WPARAM wParam,
+                                                             LPARAM lPalam);
 
 using namespace Microsoft::WRL;
 using namespace Logger;
@@ -16,6 +23,15 @@ void DXCommon::Initialize(WinAPI *winApi) {
   InitDevice();
   InitCommand();
   CreateSwapChain();
+  CreateDepthBuffer();
+  CreateDescriptorHeaps();
+  InitRenderTargetView();
+  InitDepthStancilView();
+  InitFence();
+  InitViewportRect();
+  InitScissorRect();
+  CreateDXCCompiler();
+  InitImGui();
 }
 
 void DXCommon::InitDevice() {
@@ -115,7 +131,6 @@ void DXCommon::InitCommand() {
 void DXCommon::CreateSwapChain() {
 
   HRESULT hr;
-  DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
   swapChainDesc.Width = winApi_->kCliantWidth;
   swapChainDesc.Height = winApi_->kCliantHeight;
   swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -193,7 +208,6 @@ void DXCommon::InitRenderTargetView() {
   D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
       rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-  D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
   rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
   rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
@@ -208,6 +222,70 @@ void DXCommon::InitRenderTargetView() {
 
     rtvHandle.ptr += descriptorSizeRTV;
   }
+}
+
+void DXCommon::InitDepthStancilView() {
+
+  D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+
+  dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+  dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+  device->CreateDepthStencilView(
+      depthStencilResource.Get(), &dsvDesc,
+      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+void DXCommon::InitFence() {
+  HRESULT hr;
+
+  uint64_t fenceValue = 0;
+  hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE,
+                           IID_PPV_ARGS(&fence));
+  assert(SUCCEEDED(hr));
+
+  HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  assert(fenceEvent != nullptr);
+}
+
+void DXCommon::InitViewportRect() {
+
+  viewport.Width = WinAPI::kCliantWidth;
+  viewport.Height = WinAPI::kCliantHeight;
+  viewport.TopLeftX = 0;
+  viewport.TopLeftY = 0;
+  viewport.MinDepth = 0.0f;
+  viewport.MaxDepth = 1.0f;
+}
+
+void DXCommon::InitScissorRect() {
+  // Scissor
+  scissorRect.left = 0;
+  scissorRect.right = WinAPI::kCliantWidth;
+  scissorRect.top = 0;
+  scissorRect.bottom = WinAPI::kCliantHeight;
+}
+
+void DXCommon::CreateDXCCompiler() {
+  HRESULT hr;
+
+  hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+  assert(SUCCEEDED(hr));
+  hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+  assert(SUCCEEDED(hr));
+  hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
+  assert(SUCCEEDED(hr));
+}
+
+void DXCommon::InitImGui() {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGui_ImplWin32_Init(winApi_->GetHwnd());
+  ImGui_ImplDX12_Init(device.Get(), swapChainDesc.BufferCount, rtvDesc.Format,
+                      srvDescriptorHeap.Get(),
+                      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+                      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 ComPtr<ID3D12DescriptorHeap>
@@ -226,4 +304,14 @@ DXCommon::CreateDiscriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
   assert(SUCCEEDED(hr));
 
   return descriptorHeap;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE
+DXCommon::GetSRVCPUDescriptorHandle(uint32_t index) {
+  return GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE
+DXCommon::GetSRVGPUDescriptorHandle(uint32_t index) {
+  return GetGPUDscriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
 }

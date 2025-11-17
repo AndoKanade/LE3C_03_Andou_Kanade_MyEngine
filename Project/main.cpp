@@ -539,8 +539,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(
   return intermediateResource;
 }
 
-
-
 #pragma endregion
 
 #pragma region MaterialTemplate関数
@@ -936,7 +934,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
   DXCommon *dxCommon = nullptr;
   dxCommon = new DXCommon();
-  // dxCommon->Initialize(winApi);
+  dxCommon->Initialize(winApi);
 
   Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
   IXAudio2MasteringVoice *masterVoice;
@@ -953,7 +951,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
   bool hasPlayed = false;
 
-
 #pragma region DepthStencil
 
   D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
@@ -961,34 +958,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   depthStencilDesc.DepthEnable = true;
   depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
   depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
-#pragma endregion
-
-#pragma region FenceとEventの作成
-
-  Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
-  uint64_t fenceValue = 0;
-  hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE,
-                           IID_PPV_ARGS(&fence));
-  assert(SUCCEEDED(hr));
-
-  HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-  assert(fenceEvent != nullptr);
-#pragma endregion
-
-#pragma region DXCの初期化
-
-  Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
-  Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
-
-  hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
-  assert(SUCCEEDED(hr));
-  hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
-  assert(SUCCEEDED(hr));
-
-  IDxcIncludeHandler *includeHandler = nullptr;
-  hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
-  assert(SUCCEEDED(hr));
 
 #pragma endregion
 
@@ -1282,40 +1251,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-#pragma region DepthStencilViewを生成する
-
-  D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-
-  dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-  dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-
-  device->CreateDepthStencilView(
-      depthStencilResource.Get(), &dsvDesc,
-      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-#pragma endregion
-
-#pragma region viewportとscissor
-
-  // Viewport
-  D3D12_VIEWPORT viewport{};
-
-  viewport.Width = WinAPI::kCliantWidth;
-  viewport.Height = WinAPI::kCliantHeight;
-  viewport.TopLeftX = 0;
-  viewport.TopLeftY = 0;
-  viewport.MinDepth = 0.0f;
-  viewport.MaxDepth = 1.0f;
-
-  // Scissor
-  D3D12_RECT scissorRect{};
-  scissorRect.left = 0;
-  scissorRect.right = WinAPI::kCliantWidth;
-  scissorRect.top = 0;
-  scissorRect.bottom = WinAPI::kCliantHeight;
-
-#pragma endregion
-
 #pragma region Textureの読み込み
 
   DirectX::ScratchImage mipImages = LoadTexture("resource/uvChecker.png");
@@ -1334,7 +1269,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       UploadTextureData(textureResource2, mipImages2, device, commandList);
 
 #pragma endregion
-
 
 #pragma region SRVを生成する
 
@@ -1527,15 +1461,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       100.0f);
 
 #pragma region ImGuiの初期化
-
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGui::StyleColorsDark();
-  ImGui_ImplWin32_Init(winApi->GetHwnd());
-  ImGui_ImplDX12_Init(device.Get(), swapChainDesc.BufferCount, rtvDesc.Format,
-                      srvDescriptorHeap.Get(),
-                      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-                      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
   // 三角形の初期値
   Vector4 triangleColor = {1.0f, 1.0f, 1.0f, 1.0f};
