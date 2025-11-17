@@ -1,5 +1,7 @@
 #include "StringUtility.h"
 
+#include <Windows.h>
+
 namespace StringUtility {
 std::wstring ConvertString(const std::string &str) {
   if (str.empty()) {

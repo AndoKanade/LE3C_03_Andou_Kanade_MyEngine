@@ -1,13 +1,17 @@
 #pragma once
 #include "WinAPI.h"
+#include <DirectXTex.h>
 #include <array>
 #include <d3d12.h>
+
 #include <dxcapi.h>
 #include <dxgi1_6.h>
+#include <string>
 #include <wrl.h>
 
 class DXCommon {
 public:
+#pragma region メンバ変数
   Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
   Microsoft::WRL::ComPtr<ID3D12Device> device;
 
@@ -46,6 +50,10 @@ public:
   uint64_t fenceValue = 0;
   HANDLE fenceEvent = nullptr;
 
+#pragma endregion
+
+#pragma region メンバ関数
+
   void Initialize(WinAPI *winApi);
 
   void InitDevice();
@@ -61,6 +69,12 @@ public:
   void CreateDXCCompiler();
   void InitImGui();
 
+  void PreDraw();
+  void PostDraw();
+
+#pragma endregion
+
+#pragma region ユーティリティ関数
   Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>
   CreateDiscriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors,
                        bool shaderVisible);
@@ -68,8 +82,26 @@ public:
   D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
   D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
 
-  void PreDraw();
-  void PostDraw();
+  Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring &filePath,
+                                                 const wchar_t *profile);
+
+  Microsoft::WRL::ComPtr<ID3D12Resource>
+  CreateBufferResource(size_t sizeInBytes);
+
+  Microsoft::WRL::ComPtr<ID3D12Resource>
+  CreateTextureResource(const DirectX::TexMetadata &metadata);
+
+  Microsoft::WRL::ComPtr<ID3D12Resource>
+  UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource> &texture,
+                    const DirectX::ScratchImage &mipImages);
+
+  static DirectX::ScratchImage LoadTexture(const std::string &filePath);
+#pragma endregion
+
+  ID3D12Device *GetDevice() const { return device.Get(); }
+  ID3D12GraphicsCommandList *GetCommandList() const {
+    return commandList.Get();
+  }
 
 private:
   WinAPI *winApi_ = nullptr;
