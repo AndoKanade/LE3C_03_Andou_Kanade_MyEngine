@@ -50,7 +50,7 @@ void DXCommon::InitDevice() {
 
   /// DXGIファクトリーの生成
 
-  HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
+  hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
 
   assert(SUCCEEDED(hr));
 
@@ -226,25 +226,26 @@ void DXCommon::InitRenderTargetView() {
 
 void DXCommon::InitDepthStancilView() {
 
-  D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+  dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
+  D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
   dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
   dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+  dsvDesc.Flags = D3D12_DSV_FLAG_NONE; // Flagsの初期化も明示的に行うべき
 
-  device->CreateDepthStencilView(
-      depthStencilResource.Get(), &dsvDesc,
-      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+  device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc,
+                                 dsvHandle // メンバー変数を渡す
+  );
 }
 
 void DXCommon::InitFence() {
   HRESULT hr;
 
-  uint64_t fenceValue = 0;
   hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE,
                            IID_PPV_ARGS(&fence));
   assert(SUCCEEDED(hr));
 
-  HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   assert(fenceEvent != nullptr);
 }
 
@@ -314,4 +315,68 @@ DXCommon::GetSRVCPUDescriptorHandle(uint32_t index) {
 D3D12_GPU_DESCRIPTOR_HANDLE
 DXCommon::GetSRVGPUDescriptorHandle(uint32_t index) {
   return GetGPUDscriptorHandle(srvDescriptorHeap, descriptorSizeSRV, index);
+}
+
+void DXCommon::PreDraw() {
+  UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+  barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+
+  barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+  barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
+
+  barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+
+  barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+  commandList.Get()->ResourceBarrier(1, &barrier);
+
+  commandList.Get()->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
+                                        &dsvHandle);
+  float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f}; // ここで色を変える
+  commandList.Get()->ClearRenderTargetView(rtvHandles[backBufferIndex],
+                                           clearColor, 0, nullptr);
+
+  commandList.Get()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH,
+                                           1.0f, 0, 0, nullptr);
+
+  const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {
+      srvDescriptorHeap};
+  commandList.Get()->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
+
+  commandList.Get()->RSSetViewports(1, &viewport);
+  commandList.Get()->RSSetScissorRects(1, &scissorRect);
+}
+
+void DXCommon::PostDraw() {
+
+  HRESULT hr;
+
+  barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+  barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+  commandList.Get()->ResourceBarrier(1, &barrier);
+
+  hr = commandList.Get()->Close();
+  assert(SUCCEEDED(hr));
+
+  const Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = {
+      commandList};
+  commandQueue.Get()->ExecuteCommandLists(1, commandLists->GetAddressOf());
+
+  swapChain->Present(1, 0);
+
+  fenceValue++;
+  commandQueue->Signal(fence.Get(), fenceValue);
+
+  if (fence->GetCompletedValue() < fenceValue) {
+    fence->SetEventOnCompletion(fenceValue, fenceEvent);
+
+    WaitForSingleObject(fenceEvent, INFINITE);
+  }
+  hr = commandAllocator->Reset();
+  assert(SUCCEEDED(hr));
+  hr = commandList->Reset(commandAllocator.Get(), nullptr);
+  assert(SUCCEEDED(hr));
+
+  UINT bbIndex = swapChain->GetCurrentBackBufferIndex();
 }

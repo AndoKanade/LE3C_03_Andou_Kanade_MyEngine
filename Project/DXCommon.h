@@ -20,6 +20,7 @@ public:
   std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, 2> swapChainResources;
 
   Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
+  D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 
   uint32_t descriptorSizeSRV = 0;
   uint32_t descriptorSizeRTV = 0;
@@ -40,6 +41,10 @@ public:
   Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
   Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
   IDxcIncludeHandler *includeHandler = nullptr;
+
+  D3D12_RESOURCE_BARRIER barrier{};
+  uint64_t fenceValue = 0;
+  HANDLE fenceEvent = nullptr;
 
   void Initialize(WinAPI *winApi);
 
@@ -62,6 +67,9 @@ public:
 
   D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
   D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
+
+  void PreDraw();
+  void PostDraw();
 
 private:
   WinAPI *winApi_ = nullptr;

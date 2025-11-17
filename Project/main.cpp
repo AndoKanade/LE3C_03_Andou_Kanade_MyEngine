@@ -1317,12 +1317,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-#pragma region dsvHandleの取得
-  D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-
-#pragma endregion
-
 #pragma region 頂点データの更新
 
   // const uint32_t kSubdivision = 16;
@@ -1613,50 +1607,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       /// 描画処理
       ///================================
 
-#pragma region 画面の色を変える
-      // コマンドリストのリセット
-      UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+      dxCommon->PreDraw();
 
-#pragma region バリアを張る
-
-      // TransitionBarrierを作る
-      D3D12_RESOURCE_BARRIER barrier{};
-
-      // 今回はTransition
-      barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-
-      // Noneにしておく
-      barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-      // バリアを張る対象のリソース。現在のバックバッファに対して行う
-      barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
-
-      // 遷移前のResourceState
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-
-      // 遷移後のResourceState
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      // バリアを張るSubresourceIndex
-      commandList.Get()->ResourceBarrier(1, &barrier);
-#pragma endregion
-
-#pragma region 実際の描画処理
-      commandList.Get()->OMSetRenderTargets(1, &rtvHandles[backBufferIndex],
-                                            false, &dsvHandle);
-      // 指定した色で画面全体をクリアする
-      float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f}; // ここで色を変える
-      commandList.Get()->ClearRenderTargetView(rtvHandles[backBufferIndex],
-                                               clearColor, 0, nullptr);
-
-      commandList.Get()->ClearDepthStencilView(
-          dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-      const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {
-          srvDescriptorHeap};
-      commandList.Get()->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
-
-      commandList.Get()->RSSetViewports(1, &viewport);
-      commandList.Get()->RSSetScissorRects(1, &scissorRect);
       commandList.Get()->SetGraphicsRootSignature(rootSignature.Get());
       commandList.Get()->SetPipelineState(graphicsPipelineState.Get());
 
@@ -1699,49 +1651,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
 #pragma endregion
-
-#pragma region バリアを張る
-
-      // 今回はRenderTargetからPresentにする
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-      // バリアを張るSubresourceIndex
-      commandList.Get()->ResourceBarrier(1, &barrier);
-
-#pragma endregion
-
-      hr = commandList.Get()->Close();
-      // コマンドリストの生成に失敗したら起動しない
-      assert(SUCCEEDED(hr));
-
-      // コマンドをキックする
-      const Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = {
-          commandList};
-      commandQueue.Get()->ExecuteCommandLists(1, commandLists->GetAddressOf());
-
-      swapChain->Present(1, 0);
-
-#pragma region フェンスの値を更新
-      // フェンスの値を更新
-      fenceValue++;
-      // GPUがここまでたどり着いたときに,Fenceの値を指定した値に代入するようにSignalを送る
-      commandQueue->Signal(fence.Get(), fenceValue);
-
-      if (fence->GetCompletedValue() < fenceValue) {
-        // GPUが指定した値にたどり着くまで待つ
-        fence->SetEventOnCompletion(fenceValue, fenceEvent);
-
-        // イベントを待つ
-        WaitForSingleObject(fenceEvent, INFINITE);
-      }
-#pragma endregion
-      hr = commandAllocator->Reset();
-      assert(SUCCEEDED(hr));
-      hr = commandList->Reset(commandAllocator.Get(), nullptr);
-      assert(SUCCEEDED(hr));
-
-#pragma endregion
     }
+    dxCommon->PostDraw();
   }
 
 #pragma region ImGuiの終了処理
