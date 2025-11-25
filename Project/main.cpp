@@ -1348,6 +1348,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
   D3D12_ROOT_PARAMETER rootParametersInstancing[4] = {};
 
+  rootParametersInstancing[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+  rootParametersInstancing[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+  rootParametersInstancing[0].Descriptor.ShaderRegister = 0;
+
   rootParametersInstancing[1].ParameterType =
       D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
   rootParametersInstancing[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -1355,6 +1359,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       descriptorRangeForInstancing;
   rootParametersInstancing[1].DescriptorTable.NumDescriptorRanges =
       _countof(descriptorRangeForInstancing);
+
+    rootParametersInstancing[2].ParameterType =
+      D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+  rootParametersInstancing[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParametersInstancing[2].DescriptorTable.pDescriptorRanges =
+        descriptorRange;
+  rootParametersInstancing[2].DescriptorTable.NumDescriptorRanges =
+      _countof(descriptorRangeForInstancing);
+
+  rootParametersInstancing[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+  rootParametersInstancing[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+  rootParametersInstancing[3].Descriptor.ShaderRegister = 2;
 
 #pragma endregion
 
@@ -1423,7 +1439,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
   blendDesc.RenderTarget[0].RenderTargetWriteMask =
       D3D12_COLOR_WRITE_ENABLE_ALL;
-  blendDesc.RenderTarget[0].BlendEnable = true;
+  blendDesc.RenderTarget[0].BlendEnable = TRUE;
   blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
   blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
   blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
@@ -2041,8 +2057,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 #pragma region 三角形の回転
 
-      Matrix4x4 worldMatrix = MakeAffineMatrix(
-          transform.scale, transform.rotate, transform.translate);
+      // Matrix4x4 worldMatrix = MakeAffineMatrix(
+      //     transform.scale, transform.rotate, transform.translate);
       Matrix4x4 cameraMatrix =
           MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate,
                            cameraTransform.translate);
@@ -2050,11 +2066,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(
           0.45f, float(WinAPI::kCliantWidth) / float(WinAPI::kCliantHeight),
           0.1f, 100.0f);
-      Matrix4x4 worldViewProjectionMatrix =
-          Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+      //  Matrix4x4 worldViewProjectionMatrix =
+      //      Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 
-      //     transform.rotate.y += 0.01f;
-      *wvpData = {worldViewProjectionMatrix, worldMatrix};
+      //    transform.rotate.y += 0.01f;
+      //*wvpData = {worldViewProjectionMatrix, worldMatrix};
 
       for (uint32_t index = 0; index < kNumInstance, ++index;) {
         Matrix4x4 worldMatrix =
