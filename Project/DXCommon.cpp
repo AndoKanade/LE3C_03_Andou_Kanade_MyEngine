@@ -2,6 +2,7 @@
 #include "DXCommon.h"
 #include "Logger.h"
 #include "StringUtility.h"
+#include <thread>
 
 
 #include "externals/DirectXTex/DirectXTex.h"
@@ -22,6 +23,7 @@ using namespace Microsoft::WRL;
 using namespace Logger;
 using namespace StringUtility;
 void DXCommon::Initialize(WinAPI* winApi) {
+	InitializeFixFPS();
 
 	assert(winApi);
 	this->winApi_ = winApi;
@@ -572,6 +574,8 @@ void DXCommon::PostDraw() {
 	const Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = { commandList };
 	commandQueue.Get()->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
+	UpdateFixFPS();
+
 	swapChain->Present(1, 0);
 	fenceValue++;
 	commandQueue->Signal(fence.Get(), fenceValue);
@@ -586,5 +590,33 @@ void DXCommon::PostDraw() {
 	hr = commandList->Reset(commandAllocator.Get(), nullptr);
 	assert(SUCCEEDED(hr));
 
-//	 bbIndex = swapChain->GetCurrentBackBufferIndex();
+	//	 bbIndex = swapChain->GetCurrentBackBufferIndex();
+}
+
+
+void DXCommon::InitializeFixFPS()
+{
+
+	reference_ = std::chrono::steady_clock::now();
+}
+
+void DXCommon::UpdateFixFPS()
+{
+
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	// 前回記録からの経過時間を取得する
+	std::chrono::microseconds elapsed =
+		std::chrono::duration_cast<std::chrono::microseconds> (now - reference_);
+	// 1/60秒(よりわずかに短い時間) 経っていない場合
+	if (elapsed < kMinTime) {
+		while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
+			// 1マイクロ秒スリープ
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
+	}
+	// 現在の時間を記録する
+	reference_ = std::chrono::steady_clock::now();
 }

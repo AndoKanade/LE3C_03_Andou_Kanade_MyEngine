@@ -3,6 +3,7 @@
 #include <DirectXTex.h>
 #include <array>
 #include <d3d12.h>
+#include<chrono>
 
 #include <dxcapi.h>
 #include <dxgi1_6.h>
@@ -123,4 +124,9 @@ private:
     handleGPU.ptr += descriptorSize * index;
     return handleGPU;
   }
+
+  void InitializeFixFPS();
+  void UpdateFixFPS();
+
+  std::chrono::steady_clock::time_point reference_;
 };
