@@ -549,7 +549,7 @@ CreateDepthStencilResource(const Microsoft::WRL::ComPtr<ID3D12Device> &device,
 
   HRESULT hr = device->CreateCommittedResource(
       &heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-      D3D12_RESOURCE_STATE_COPY_DEST, &depthClearValue,
+      D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue,
       IID_PPV_ARGS(&resource));
   assert(SUCCEEDED(hr));
   return resource;
@@ -601,7 +601,7 @@ CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device> &device,
   Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
   HRESULT hr = device->CreateCommittedResource(
       &heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
-      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+      D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
   assert(SUCCEEDED(hr));
 
   return resource;
@@ -1335,9 +1335,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
   rootParameters[3].Descriptor.ShaderRegister = 2;
 
-  descriptionRootSignature.pParameters = rootParameters;
-  descriptionRootSignature.NumParameters = _countof(rootParameters);
-
   D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
 
   descriptorRangeForInstancing[0].BaseShaderRegister = 0;
@@ -1360,17 +1357,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   rootParametersInstancing[1].DescriptorTable.NumDescriptorRanges =
       _countof(descriptorRangeForInstancing);
 
-    rootParametersInstancing[2].ParameterType =
+  rootParametersInstancing[2].ParameterType =
       D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
   rootParametersInstancing[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rootParametersInstancing[2].DescriptorTable.pDescriptorRanges =
-        descriptorRange;
+  rootParametersInstancing[2].DescriptorTable.pDescriptorRanges =
+      descriptorRange;
   rootParametersInstancing[2].DescriptorTable.NumDescriptorRanges =
       _countof(descriptorRangeForInstancing);
 
   rootParametersInstancing[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
   rootParametersInstancing[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
   rootParametersInstancing[3].Descriptor.ShaderRegister = 2;
+
+  descriptionRootSignature.pParameters = rootParametersInstancing;
+  descriptionRootSignature.NumParameters = _countof(rootParametersInstancing);
 
 #pragma endregion
 
@@ -2072,12 +2072,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       //    transform.rotate.y += 0.01f;
       //*wvpData = {worldViewProjectionMatrix, worldMatrix};
 
-      for (uint32_t index = 0; index < kNumInstance, ++index;) {
+      for (uint32_t index = 0; index < kNumInstance; ++index) {
         Matrix4x4 worldMatrix =
             MakeAffineMatrix(transforms[index].scale, transforms[index].rotate,
                              transforms[index].translate);
+        // World * View * Projection の順で掛け合わせる必要があります
         Matrix4x4 worldViewProjectionMatrix =
-            Multiply(worldMatrix, projectionMatrix);
+            Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
         instancingData[index].WVP = worldViewProjectionMatrix;
         instancingData[index].World = worldMatrix;
       }
@@ -2146,33 +2147,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
       materialResource->Unmap(0, nullptr);
 
       // 球の描画：Material, WVP, Light を正しくセット
+      // ... (VB, IB, Topologyの設定はOK) ...
       commandList.Get()->IASetVertexBuffers(0, 1, &vertexBufferView);
       commandList.Get()->IASetIndexBuffer(&indexBufferView);
       commandList.Get()->IASetPrimitiveTopology(
           D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+      // Index 0: マテリアル (OK)
       commandList.Get()->SetGraphicsRootConstantBufferView(
           0, materialResource->GetGPUVirtualAddress());
-      commandList.Get()->SetGraphicsRootConstantBufferView(
-          1, wvpResource->GetGPUVirtualAddress());
-      commandList.Get()->SetGraphicsRootConstantBufferView(
-          3, directionalLightResource->GetGPUVirtualAddress());
+
+      // --- ここにあった「Index 1 の ConstantBufferView」は消すこと！ ---
+
+      // Index 1: インスタンシング用 (OK)
+      // ※こっちが正解なので、これだけを残す
       commandList.Get()->SetGraphicsRootDescriptorTable(1,
                                                         instancingSrvHandleGPU);
-      //     uint32_t indexCount = kSubdivision * kSubdivision * 6;
 
+      // Index 2: テクスチャ (OK)
+      // ※さきほど追加してもらった行
+      commandList.Get()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+
+      // Index 3: ライト (OK)
+      commandList.Get()->SetGraphicsRootConstantBufferView(
+          3, directionalLightResource->GetGPUVirtualAddress());
+
+      // 描画
       commandList.Get()->DrawInstanced(UINT(modelData.vertices.size()),
                                        kNumInstance, 0, 0);
 
-      commandList.Get()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-      commandList.Get()->IASetIndexBuffer(&indexBufferViewSprite);
-      commandList.Get()->IASetPrimitiveTopology(
-          D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+      // commandList.Get()->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+      // commandList.Get()->IASetIndexBuffer(&indexBufferViewSprite);
+      // commandList.Get()->IASetPrimitiveTopology(
+      //     D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-      commandList.Get()->SetGraphicsRootConstantBufferView(
-          0, materialResourceSprite->GetGPUVirtualAddress());
-      commandList.Get()->SetGraphicsRootConstantBufferView(
-          1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-      commandList.Get()->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+      // commandList.Get()->SetGraphicsRootConstantBufferView(
+      //     0, materialResourceSprite->GetGPUVirtualAddress());
+      // commandList.Get()->SetGraphicsRootConstantBufferView(
+      //     1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+      //     commandList.Get()->SetGraphicsRootDescriptorTable(2,
+      //     textureSrvHandleGPU);
 
       //  commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
@@ -2238,6 +2252,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
   if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
     // やばいエラー時に止まる
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+
+    // エラー時に止まる
+    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+
     // 警告時に止まる
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 
