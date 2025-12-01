@@ -2,14 +2,12 @@
 #include"Logger.h"
 #include <d3dx12.h>
 
-void SpriteCommon::Initialize(DXCommon* dxCommon)
-{
+void SpriteCommon::Initialize(DXCommon* dxCommon){
 	SpriteCommon::dxCommon_ = dxCommon;
 	CreatePipelineState();
 }
 
-void SpriteCommon::Draw()
-{
+void SpriteCommon::Draw(){
 
 	dxCommon_->commandList.Get()->SetGraphicsRootSignature(
 		rootSignature.Get());
@@ -20,8 +18,7 @@ void SpriteCommon::Draw()
 
 }
 
-void SpriteCommon::CreateRootSignature()
-{
+void SpriteCommon::CreateRootSignature(){
 
 	HRESULT hr;
 	descriptionRootSignature.Flags =
@@ -78,7 +75,7 @@ void SpriteCommon::CreateRootSignature()
 		D3D_ROOT_SIGNATURE_VERSION_1,&signatureBlob,
 		&errorBlob);
 
-	if(FAILED(hr)) {
+	if(FAILED(hr)){
 		Logger::Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
 		assert(false);
 	}
@@ -94,12 +91,11 @@ void SpriteCommon::CreateRootSignature()
 
 }
 
-void SpriteCommon::CreatePipelineState()
-{
+void SpriteCommon::CreatePipelineState(){
 
 	HRESULT hr;
 
-	void CreatePipelineState();
+ CreateRootSignature();
 
 #pragma region InputLayoutを生成する
 	inputElementDescs[0].SemanticName = "POSITION";

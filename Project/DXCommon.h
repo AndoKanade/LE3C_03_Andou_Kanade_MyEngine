@@ -10,7 +10,7 @@
 #include <string>
 #include <wrl.h>
 
-class DXCommon {
+class DXCommon{
 public:
 #pragma region メンバ変数
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
@@ -99,8 +99,8 @@ public:
 	static DirectX::ScratchImage LoadTexture(const std::string& filePath);
 #pragma endregion
 
-	ID3D12Device* GetDevice() const { return device.Get(); }
-	ID3D12GraphicsCommandList* GetCommandList() const {
+	ID3D12Device* GetDevice() const{ return device.Get(); }
+	ID3D12GraphicsCommandList* GetCommandList() const{
 		return commandList.Get();
 	}
 
@@ -109,7 +109,7 @@ private:
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(
 		const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
-		uint32_t descriptorSize,uint32_t index) {
+		uint32_t descriptorSize,uint32_t index){
 		D3D12_CPU_DESCRIPTOR_HANDLE handleCPU =
 			descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 		handleCPU.ptr += descriptorSize * index;
@@ -118,7 +118,7 @@ private:
 
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDscriptorHandle(
 		const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
-		uint32_t descriptorSize,uint32_t index) {
+		uint32_t descriptorSize,uint32_t index){
 		D3D12_GPU_DESCRIPTOR_HANDLE handleGPU =
 			descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 		handleGPU.ptr += descriptorSize * index;

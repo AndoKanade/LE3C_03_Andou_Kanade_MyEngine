@@ -2,8 +2,7 @@
 #include<Windows.h>
 #include"DXCommon.h"
 
-class SpriteCommon
-{
+class SpriteCommon{
 
 public:
 	void Initialize(DXCommon* dxCommon);
@@ -29,9 +28,7 @@ public:
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 
-
-
-
+	DXCommon* GetDxCommon() const{ return dxCommon_; }
 
 private:
 
@@ -40,6 +37,5 @@ private:
 
 	DXCommon* dxCommon_ = nullptr;
 
-	DXCommon* GetDxCommon() const { return dxCommon_; }
 };
 
