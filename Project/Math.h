@@ -3,6 +3,14 @@
 
 struct Vector2{
 	float x,y;
+
+	// Vector2構造体の中にこれを追加
+	Vector2& operator+=(const Vector2& other){
+		x += other.x;
+		y += other.y;
+		return *this;
+	}
+
 };
 
 inline bool operator<(const Vector2& a,const Vector2& b){
@@ -14,6 +22,8 @@ inline bool operator<(const Vector2& a,const Vector2& b){
 inline bool operator!=(const Vector2& a,const Vector2& b){
 	return a.x != b.x || a.y != b.y;
 }
+
+
 
 struct Vector3{
 	float x,y,z;

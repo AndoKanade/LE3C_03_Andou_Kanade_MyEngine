@@ -389,7 +389,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApi);
 
-//	HRESULT hr;
+	//	HRESULT hr;
 
 	input = new Input();
 	input->Initialize(winApi);
@@ -401,6 +401,27 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 	Sprite* sprite = new Sprite();
 	sprite->Initialize(spriteCommon);
+
+	std::vector<Sprite*>sprites;
+	float startX = 100.0f;
+	float startY = 200.0f;
+	// ずらす幅
+	float gap = 150.0f;
+
+	for(uint32_t i = 0; i < 5; ++i){
+		Sprite* newSprite = new Sprite();
+		newSprite->Initialize(spriteCommon);
+
+		// x座標を i * gap 分だけずらす
+		// i=0 のときは 100, i=1 のときは 250, i=2 のときは 400... となる
+		Vector2 position = {startX + (i * gap), startY};
+
+		// ※お手持ちのエンジンに合わせて関数名は調整してください
+		// 例: newSprite->SetPosition(position); または newSprite->transform.translate = position; など
+		newSprite->SetPosition(position);
+
+		sprites.push_back(newSprite);
+	}
 
 	SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
 	bool hasPlayed = false;
@@ -670,91 +691,95 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 			sprite->Update();
 
-//#ifdef _DEBUG
-//			ImGui_ImplDX12_NewFrame();
-//			ImGui_ImplWin32_NewFrame();
-//			ImGui::NewFrame();
-//
-//			ImGui::Begin("Settings");
-//
-//			// === Triangle Color ===
-//			if(ImGui::CollapsingHeader("model Color")){
-//				ImGui::ColorEdit4("Color",reinterpret_cast<float*>(&triangleColor));
-//			}
-//
-//			if(ImGui::CollapsingHeader("CameraTransform")){
-//				ImGui::DragFloat3("CameraTranslate",&cameraTransform.translate.x,
-//					0.1f);
-//				ImGui::SliderAngle("CameraRotateX",&cameraTransform.rotate.x);
-//				ImGui::SliderAngle("CameraRotateY",&cameraTransform.rotate.y);
-//				ImGui::SliderAngle("CameraRotateZ",&cameraTransform.rotate.z);
-//			}
-//
-//			// === Transform (SRT Controller) ===
-//			if(ImGui::CollapsingHeader("modelTransform")){
-//				ImGui::SliderAngle("RotateX",&transform.rotate.x);
-//				ImGui::SliderAngle("RotateY",&transform.rotate.y);
-//				ImGui::SliderAngle("RotateZ",&transform.rotate.z);
-//				// ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-//				// materialData->enableLighting = useMonsterBall;
-//			}
-//
-//			if(ImGui::CollapsingHeader("Light Settings")){
-//				ImGui::Text("Directional Light");
-//
-//				ImGui::ColorEdit4(
-//					"Color",reinterpret_cast<float*>(&directionalLightData->color));
-//
-//				ImGui::SliderFloat3(
-//					"Direction",
-//					reinterpret_cast<float*>(&directionalLightData->direction),-1.0f,
-//					1.0f);
-//
-//				// Normalize direction
-//				Vector3& v = directionalLightData->direction;
-//				XMVECTOR dir = XMVectorSet(v.x,v.y,v.z,0.0f);
-//				dir = XMVector3Normalize(dir);
-//				XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&v),dir);
-//
-//				ImGui::SliderFloat("Intensity",&directionalLightData->intensity,0.0f,
-//					10.0f);
-//			}
-//
-//			// === Sprite Transform ===
-//			//if(ImGui::CollapsingHeader("Sprite Transform")){
-//			//	ImGui::DragFloat3("Scale##Sprite",&transformSprite.scale.x,0.1f,0.1f,
-//			//		10.0f);
-//			//	ImGui::DragFloat3("Rotate (rad)##Sprite",&transformSprite.rotate.x,
-//			//		0.01f,-3.14f,3.14f);
-//			//	ImGui::DragFloat3("Translate##Sprite",&transformSprite.translate.x,
-//			//		1.0f,-700.0f,700.0f);
-//			//}
-//
-//			// === UV Transform Sprite ===
-//			if(ImGui::CollapsingHeader("UV Transform Sprite")){
-//				ImGui::DragFloat2("UVTranslate",&uvTransformSprite.translate.x,0.01f,
-//					-10.0f,10.0f);
-//				ImGui::DragFloat2("UVScale",&uvTransformSprite.scale.x,0.01f,-10.0f,
-//					10.0f);
-//				ImGui::SliderAngle("UVRotate",&uvTransformSprite.rotate.z);
-//			}
-//
-//			ImGui::End();
-//			ImGui::Render();
-//
-//#endif
+			for(Sprite* sprite : sprites){
+				sprite->Update();
+			}
 
-			///================================
-			/// 更新処理
-			/// ==============================
+			//#ifdef _DEBUG
+			//			ImGui_ImplDX12_NewFrame();
+			//			ImGui_ImplWin32_NewFrame();
+			//			ImGui::NewFrame();
+			//
+			//			ImGui::Begin("Settings");
+			//
+			//			// === Triangle Color ===
+			//			if(ImGui::CollapsingHeader("model Color")){
+			//				ImGui::ColorEdit4("Color",reinterpret_cast<float*>(&triangleColor));
+			//			}
+			//
+			//			if(ImGui::CollapsingHeader("CameraTransform")){
+			//				ImGui::DragFloat3("CameraTranslate",&cameraTransform.translate.x,
+			//					0.1f);
+			//				ImGui::SliderAngle("CameraRotateX",&cameraTransform.rotate.x);
+			//				ImGui::SliderAngle("CameraRotateY",&cameraTransform.rotate.y);
+			//				ImGui::SliderAngle("CameraRotateZ",&cameraTransform.rotate.z);
+			//			}
+			//
+			//			// === Transform (SRT Controller) ===
+			//			if(ImGui::CollapsingHeader("modelTransform")){
+			//				ImGui::SliderAngle("RotateX",&transform.rotate.x);
+			//				ImGui::SliderAngle("RotateY",&transform.rotate.y);
+			//				ImGui::SliderAngle("RotateZ",&transform.rotate.z);
+			//				// ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+			//				// materialData->enableLighting = useMonsterBall;
+			//			}
+			//
+			//			if(ImGui::CollapsingHeader("Light Settings")){
+			//				ImGui::Text("Directional Light");
+			//
+			//				ImGui::ColorEdit4(
+			//					"Color",reinterpret_cast<float*>(&directionalLightData->color));
+			//
+			//				ImGui::SliderFloat3(
+			//					"Direction",
+			//					reinterpret_cast<float*>(&directionalLightData->direction),-1.0f,
+			//					1.0f);
+			//
+			//				// Normalize direction
+			//				Vector3& v = directionalLightData->direction;
+			//				XMVECTOR dir = XMVectorSet(v.x,v.y,v.z,0.0f);
+			//				dir = XMVector3Normalize(dir);
+			//				XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&v),dir);
+			//
+			//				ImGui::SliderFloat("Intensity",&directionalLightData->intensity,0.0f,
+			//					10.0f);
+			//			}
+			//
+			//			// === Sprite Transform ===
+			//			//if(ImGui::CollapsingHeader("Sprite Transform")){
+			//			//	ImGui::DragFloat3("Scale##Sprite",&transformSprite.scale.x,0.1f,0.1f,
+			//			//		10.0f);
+			//			//	ImGui::DragFloat3("Rotate (rad)##Sprite",&transformSprite.rotate.x,
+			//			//		0.01f,-3.14f,3.14f);
+			//			//	ImGui::DragFloat3("Translate##Sprite",&transformSprite.translate.x,
+			//			//		1.0f,-700.0f,700.0f);
+			//			//}
+			//
+			//			// === UV Transform Sprite ===
+			//			if(ImGui::CollapsingHeader("UV Transform Sprite")){
+			//				ImGui::DragFloat2("UVTranslate",&uvTransformSprite.translate.x,0.01f,
+			//					-10.0f,10.0f);
+			//				ImGui::DragFloat2("UVScale",&uvTransformSprite.scale.x,0.01f,-10.0f,
+			//					10.0f);
+			//				ImGui::SliderAngle("UVRotate",&uvTransformSprite.rotate.z);
+			//			}
+			//
+			//			ImGui::End();
+			//			ImGui::Render();
+			//
+			//#endif
 
-			//Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+						///================================
+						/// 更新処理
+						/// ==============================
 
-			//uvTransformMatrix = Multiply(
-			//	uvTransformMatrix,MakeRotateZMatrix(uvTransformSprite.rotate.z));
-			//uvTransformMatrix = Multiply(
-			//	uvTransformMatrix,MakeTranslateMatrix(uvTransformSprite.translate));
-			//	materialDataSprite->uvTransform = uvTransformMatrix;
+						//Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+
+						//uvTransformMatrix = Multiply(
+						//	uvTransformMatrix,MakeRotateZMatrix(uvTransformSprite.rotate.z));
+						//uvTransformMatrix = Multiply(
+						//	uvTransformMatrix,MakeTranslateMatrix(uvTransformSprite.translate));
+						//	materialDataSprite->uvTransform = uvTransformMatrix;
 
 #pragma region 三角形の回転
 
@@ -787,6 +812,9 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 			dxCommon->PreDraw();
 
 			spriteCommon->Draw();
+			for(Sprite* sprite : sprites){
+				sprite->Draw();
+			}
 
 			// 三角形の色を変える
 			//materialResource->Map(0,nullptr,reinterpret_cast<void**>(&material));
@@ -813,21 +841,27 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 			sprite->Draw();
 
-		//	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(),
-//				dxCommon->commandList.Get());
+			//	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(),
+	//				dxCommon->commandList.Get());
 			dxCommon->PostDraw();
 
 #pragma endregion
 		}
 	}
 
-//#pragma region ImGuiの終了処理
-//	ImGui_ImplDX12_Shutdown();
-//	ImGui_ImplWin32_Shutdown();
-//	ImGui::DestroyContext();
-//#pragma endregion
+	//#pragma region ImGuiの終了処理
+	//	ImGui_ImplDX12_Shutdown();
+	//	ImGui_ImplWin32_Shutdown();
+	//	ImGui::DestroyContext();
+	//#pragma endregion
 
 	Log("unkillable demon king\n");
+
+
+	// ゲーム終了処理など
+	for(Sprite* sprite : sprites){
+		delete sprite;
+	}
 
 	delete sprite;
 	sprite = nullptr;
