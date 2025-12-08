@@ -27,6 +27,7 @@
 #include "externals/imgui/imgui_impl_win32.h"
 #include <iostream>
 #include <map>
+#include "TextureManager.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
 	UINT msg,
@@ -389,10 +390,14 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	dxCommon = new DXCommon();
 	dxCommon->Initialize(winApi);
 
-//	HRESULT hr;
+	//	HRESULT hr;
 
 	input = new Input();
 	input->Initialize(winApi);
+
+	TextureManager::GetInstance()->Initialize(dxCommon);
+	TextureManager::GetInstance()->LoadTexture("resource/uvChecker.png");
+	TextureManager::GetInstance()->LoadTexture("resource/monsterball.png");
 
 	SpriteCommon* spriteCommon = nullptr;
 
@@ -400,7 +405,12 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	spriteCommon->Initialize(dxCommon);
 
 	Sprite* sprite = new Sprite();
-	sprite->Initialize(spriteCommon);
+	sprite->Initialize(spriteCommon,"resource/uvChecker.png");
+
+	Sprite* spriteBall = new Sprite();
+	spriteBall->Initialize(spriteCommon,"resource/monsterball.png");
+	spriteBall->SetPosition({200.0f,0.0f});
+
 
 	SoundData soundData = SoundLoadWave("resource/You_and_Me.wav");
 	bool hasPlayed = false;
@@ -492,62 +502,12 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 #pragma region Textureの読み込み
 
-	DirectX::ScratchImage mipImages =
-		dxCommon->LoadTexture("resource/uvChecker.png");
-	const DirectX::TexMetadata metadata = mipImages.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource =
-		dxCommon->CreateTextureResource(metadata);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermadiate =
-		dxCommon->UploadTextureData(textureResource,mipImages);
+	// UVチェッカーの読み込み
+	// (内部でリソース作成や転送まで全自動で行われます)
+	TextureManager::GetInstance()->LoadTexture("resource/uvChecker.png");
 
-	DirectX::ScratchImage mipImages2 =
-		dxCommon->LoadTexture(modelData.material.textureFilePath);
-	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 =
-		dxCommon->CreateTextureResource(metadata2);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermadiate2 =
-		dxCommon->UploadTextureData(textureResource2,mipImages2);
-
-#pragma endregion
-
-#pragma region SRVを生成する
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-
-	srvDesc.Format = metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
-
-	//  ２枚目
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{};
-
-	srvDesc2.Format = metadata.format;
-	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
-
-	// SRVを作成するDescriptorHeapの場所を決める
-
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU =
-		dxCommon->GetSRVCPUDescriptorHandle(0);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
-		dxCommon->GetSRVGPUDescriptorHandle(0);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
-		dxCommon->GetSRVCPUDescriptorHandle(2);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
-		dxCommon->GetSRVGPUDescriptorHandle(2);
-
-	//  SRVを生成する
-	dxCommon->GetDevice()->CreateShaderResourceView(
-		textureResource.Get(),&srvDesc,textureSrvHandleCPU);
-
-	//   SRVを生成する
-	dxCommon->GetDevice()->CreateShaderResourceView(
-		textureResource2.Get(),&srvDesc2,textureSrvHandleCPU2);
+	// モデル用テクスチャの読み込み
+	TextureManager::GetInstance()->LoadTexture(modelData.material.textureFilePath);
 
 #pragma endregion
 
@@ -669,92 +629,93 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 			// }
 
 			sprite->Update();
+			spriteBall->Update();
 
-//#ifdef _DEBUG
-//			ImGui_ImplDX12_NewFrame();
-//			ImGui_ImplWin32_NewFrame();
-//			ImGui::NewFrame();
-//
-//			ImGui::Begin("Settings");
-//
-//			// === Triangle Color ===
-//			if(ImGui::CollapsingHeader("model Color")){
-//				ImGui::ColorEdit4("Color",reinterpret_cast<float*>(&triangleColor));
-//			}
-//
-//			if(ImGui::CollapsingHeader("CameraTransform")){
-//				ImGui::DragFloat3("CameraTranslate",&cameraTransform.translate.x,
-//					0.1f);
-//				ImGui::SliderAngle("CameraRotateX",&cameraTransform.rotate.x);
-//				ImGui::SliderAngle("CameraRotateY",&cameraTransform.rotate.y);
-//				ImGui::SliderAngle("CameraRotateZ",&cameraTransform.rotate.z);
-//			}
-//
-//			// === Transform (SRT Controller) ===
-//			if(ImGui::CollapsingHeader("modelTransform")){
-//				ImGui::SliderAngle("RotateX",&transform.rotate.x);
-//				ImGui::SliderAngle("RotateY",&transform.rotate.y);
-//				ImGui::SliderAngle("RotateZ",&transform.rotate.z);
-//				// ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-//				// materialData->enableLighting = useMonsterBall;
-//			}
-//
-//			if(ImGui::CollapsingHeader("Light Settings")){
-//				ImGui::Text("Directional Light");
-//
-//				ImGui::ColorEdit4(
-//					"Color",reinterpret_cast<float*>(&directionalLightData->color));
-//
-//				ImGui::SliderFloat3(
-//					"Direction",
-//					reinterpret_cast<float*>(&directionalLightData->direction),-1.0f,
-//					1.0f);
-//
-//				// Normalize direction
-//				Vector3& v = directionalLightData->direction;
-//				XMVECTOR dir = XMVectorSet(v.x,v.y,v.z,0.0f);
-//				dir = XMVector3Normalize(dir);
-//				XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&v),dir);
-//
-//				ImGui::SliderFloat("Intensity",&directionalLightData->intensity,0.0f,
-//					10.0f);
-//			}
-//
-//			// === Sprite Transform ===
-//			//if(ImGui::CollapsingHeader("Sprite Transform")){
-//			//	ImGui::DragFloat3("Scale##Sprite",&transformSprite.scale.x,0.1f,0.1f,
-//			//		10.0f);
-//			//	ImGui::DragFloat3("Rotate (rad)##Sprite",&transformSprite.rotate.x,
-//			//		0.01f,-3.14f,3.14f);
-//			//	ImGui::DragFloat3("Translate##Sprite",&transformSprite.translate.x,
-//			//		1.0f,-700.0f,700.0f);
-//			//}
-//
-//			// === UV Transform Sprite ===
-//			if(ImGui::CollapsingHeader("UV Transform Sprite")){
-//				ImGui::DragFloat2("UVTranslate",&uvTransformSprite.translate.x,0.01f,
-//					-10.0f,10.0f);
-//				ImGui::DragFloat2("UVScale",&uvTransformSprite.scale.x,0.01f,-10.0f,
-//					10.0f);
-//				ImGui::SliderAngle("UVRotate",&uvTransformSprite.rotate.z);
-//			}
-//
-//			ImGui::End();
-//			ImGui::Render();
-//
-//#endif
+			//#ifdef _DEBUG
+			//			ImGui_ImplDX12_NewFrame();
+			//			ImGui_ImplWin32_NewFrame();
+			//			ImGui::NewFrame();
+			//
+			//			ImGui::Begin("Settings");
+			//
+			//			// === Triangle Color ===
+			//			if(ImGui::CollapsingHeader("model Color")){
+			//				ImGui::ColorEdit4("Color",reinterpret_cast<float*>(&triangleColor));
+			//			}
+			//
+			//			if(ImGui::CollapsingHeader("CameraTransform")){
+			//				ImGui::DragFloat3("CameraTranslate",&cameraTransform.translate.x,
+			//					0.1f);
+			//				ImGui::SliderAngle("CameraRotateX",&cameraTransform.rotate.x);
+			//				ImGui::SliderAngle("CameraRotateY",&cameraTransform.rotate.y);
+			//				ImGui::SliderAngle("CameraRotateZ",&cameraTransform.rotate.z);
+			//			}
+			//
+			//			// === Transform (SRT Controller) ===
+			//			if(ImGui::CollapsingHeader("modelTransform")){
+			//				ImGui::SliderAngle("RotateX",&transform.rotate.x);
+			//				ImGui::SliderAngle("RotateY",&transform.rotate.y);
+			//				ImGui::SliderAngle("RotateZ",&transform.rotate.z);
+			//				// ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+			//				// materialData->enableLighting = useMonsterBall;
+			//			}
+			//
+			//			if(ImGui::CollapsingHeader("Light Settings")){
+			//				ImGui::Text("Directional Light");
+			//
+			//				ImGui::ColorEdit4(
+			//					"Color",reinterpret_cast<float*>(&directionalLightData->color));
+			//
+			//				ImGui::SliderFloat3(
+			//					"Direction",
+			//					reinterpret_cast<float*>(&directionalLightData->direction),-1.0f,
+			//					1.0f);
+			//
+			//				// Normalize direction
+			//				Vector3& v = directionalLightData->direction;
+			//				XMVECTOR dir = XMVectorSet(v.x,v.y,v.z,0.0f);
+			//				dir = XMVector3Normalize(dir);
+			//				XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&v),dir);
+			//
+			//				ImGui::SliderFloat("Intensity",&directionalLightData->intensity,0.0f,
+			//					10.0f);
+			//			}
+			//
+			//			// === Sprite Transform ===
+			//			//if(ImGui::CollapsingHeader("Sprite Transform")){
+			//			//	ImGui::DragFloat3("Scale##Sprite",&transformSprite.scale.x,0.1f,0.1f,
+			//			//		10.0f);
+			//			//	ImGui::DragFloat3("Rotate (rad)##Sprite",&transformSprite.rotate.x,
+			//			//		0.01f,-3.14f,3.14f);
+			//			//	ImGui::DragFloat3("Translate##Sprite",&transformSprite.translate.x,
+			//			//		1.0f,-700.0f,700.0f);
+			//			//}
+			//
+			//			// === UV Transform Sprite ===
+			//			if(ImGui::CollapsingHeader("UV Transform Sprite")){
+			//				ImGui::DragFloat2("UVTranslate",&uvTransformSprite.translate.x,0.01f,
+			//					-10.0f,10.0f);
+			//				ImGui::DragFloat2("UVScale",&uvTransformSprite.scale.x,0.01f,-10.0f,
+			//					10.0f);
+			//				ImGui::SliderAngle("UVRotate",&uvTransformSprite.rotate.z);
+			//			}
+			//
+			//			ImGui::End();
+			//			ImGui::Render();
+			//
+			//#endif
 
-			///================================
-			/// 更新処理
-			/// ==============================
+						///================================
+						/// 更新処理
+						/// ==============================
 
-			//Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+						//Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
 
-			//uvTransformMatrix = Multiply(
-			//	uvTransformMatrix,MakeRotateZMatrix(uvTransformSprite.rotate.z));
-			//uvTransformMatrix = Multiply(
-			//	uvTransformMatrix,MakeTranslateMatrix(uvTransformSprite.translate));
-			//	materialDataSprite->uvTransform = uvTransformMatrix;
+						//uvTransformMatrix = Multiply(
+						//	uvTransformMatrix,MakeRotateZMatrix(uvTransformSprite.rotate.z));
+						//uvTransformMatrix = Multiply(
+						//	uvTransformMatrix,MakeTranslateMatrix(uvTransformSprite.translate));
+						//	materialDataSprite->uvTransform = uvTransformMatrix;
 
 #pragma region 三角形の回転
 
@@ -812,23 +773,28 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 			//	UINT(modelData.vertices.size()),1,0,0);
 
 			sprite->Draw();
+			//	spriteBall->Draw();
 
-		//	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(),
-//				dxCommon->commandList.Get());
+				//	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(),
+		//				dxCommon->commandList.Get());
 			dxCommon->PostDraw();
 
 #pragma endregion
 		}
 	}
 
-//#pragma region ImGuiの終了処理
-//	ImGui_ImplDX12_Shutdown();
-//	ImGui_ImplWin32_Shutdown();
-//	ImGui::DestroyContext();
-//#pragma endregion
+	//#pragma region ImGuiの終了処理
+	//	ImGui_ImplDX12_Shutdown();
+	//	ImGui_ImplWin32_Shutdown();
+	//	ImGui::DestroyContext();
+	//#pragma endregion
 
 	Log("unkillable demon king\n");
 
+	TextureManager::GetInstance()->Finalize();
+
+	delete spriteBall;
+	spriteBall = nullptr;
 	delete sprite;
 	sprite = nullptr;
 	delete spriteCommon;
