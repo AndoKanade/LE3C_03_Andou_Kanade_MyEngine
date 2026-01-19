@@ -168,6 +168,26 @@ struct Emitter{
 	float frequencyTime;
 };
 
+// AABB (Axis Aligned Bounding Box) の定義
+struct AABB{
+	Vector3 min; // 最小点 (左下奥)
+	Vector3 max; // 最大点 (右上手前)
+};
+
+// AccelerationField の定義
+struct AccelerationField{
+	Vector3 acceleration; // 加える加速度
+	AABB area;            // 効果がある範囲
+};
+
+// 当たり判定用関数：AABBの中に点(point)があるかチェック
+bool IsCollision(const AABB& aabb,const Vector3& point){
+	if(point.x < aabb.min.x || point.x > aabb.max.x) return false;
+	if(point.y < aabb.min.y || point.y > aabb.max.y) return false;
+	if(point.z < aabb.min.z || point.z > aabb.max.z) return false;
+	return true;
+}
+
 typedef struct TransformationMatrix{
 	Matrix4x4 WVP;
 	Matrix4x4 World;
@@ -2003,6 +2023,13 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	emitter.transform.rotate = {0.0f, 0.0f, 0.0f};
 	emitter.transform.scale = {1.0f, 1.0f, 1.0f};
 
+	AccelerationField accelerationField;
+
+	accelerationField.acceleration = {15.0f, 0.0f, 0.0f};
+	accelerationField.area.min = {-1.0f,-1.0f,-1.0f};
+	accelerationField.area.max = {1.0f,1.0f,1.0f};
+
+
 	const float kDeltaTime = 1.0f / 60.0f;
 
 	std::list<Particle> particles;
@@ -2242,6 +2269,14 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 					it = particles.erase(it); // 削除し、イテレータを次の要素に進める
 					continue; // 以下の処理はせず、ループの先頭に戻る
 				}
+
+				if(IsCollision(accelerationField.area,(*it).transform.translate)){
+					(*it).velocity += accelerationField.acceleration * kDeltaTime;
+				}
+
+				// 速度に基づいて座標を更新
+				(*it).transform.translate += (*it).velocity * kDeltaTime;
+				(*it).currentTime += kDeltaTime;
 
 				// --- 生きている場合の処理 ---
 
