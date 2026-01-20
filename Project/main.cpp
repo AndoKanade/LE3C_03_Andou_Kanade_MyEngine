@@ -219,6 +219,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	ModelManager::GetInstance()->Initialize(dxCommon);
 	ModelManager::GetInstance()->LoadModel("plane.obj"); // plane読み込み
 	ModelManager::GetInstance()->LoadModel("fence.obj"); // fence読み込み
+	ModelManager::GetInstance()->LoadModel("sphere.obj"); // sphere読み込み
 
 
 	// ---------------------------------------------------------------
@@ -236,7 +237,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	// 3Dオブジェクト 1 (plane)
 	Obj3D* object3d = new Obj3D();
 	object3d->Initialize(object3dCommon);
-	object3d->SetModel("plane.obj");
+	object3d->SetModel("sphere.obj");
 	object3d->SetTranslate({0.0f, 0.0f, 0.0f});
 	object3d->SetScale({1.0f, 1.0f, 1.0f});
 
@@ -322,11 +323,11 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 			// オブジェクト更新
 			object3d->Update();
-			object3d_2->Update();
-			sprite->Update();
-			spriteBall->Update();
-			particleEmitter->Update();
-			ParticleManager::GetInstance()->Update(activeCamera);
+			//object3d_2->Update();
+			//sprite->Update();
+			//spriteBall->Update();
+			//particleEmitter->Update();
+			//ParticleManager::GetInstance()->Update(activeCamera);
 
 			// テスト機能
 			if(input->TriggerKey(DIK_SPACE)){
@@ -344,16 +345,16 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 			// 3D描画
 			object3dCommon->Draw(); // 共通設定
 			object3d->Draw();       // plane
-			object3d_2->Draw();     // fence
+		//	object3d_2->Draw();     // fence
 
 			if(activeCamera){
-				ParticleManager::GetInstance()->Draw(activeCamera->GetViewProjectionMatrix());
+		//		ParticleManager::GetInstance()->Draw(activeCamera->GetViewProjectionMatrix());
 			}
 
 
 			// 2D描画
-			spriteCommon->Draw();   // 共通設定
-			sprite->Draw();
+		//	spriteCommon->Draw();   // 共通設定
+		//	sprite->Draw();
 			// spriteBall->Draw();
 
 			dxCommon->PostDraw();

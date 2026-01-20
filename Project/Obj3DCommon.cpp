@@ -38,8 +38,8 @@ void Obj3dCommon::CreateRootSignature(){
 
 
 	// 1. ルートパラメータの設定
-	// 一般的な3D用構成: [0]Material(CBV), [1]Transform(CBV), [2]Texture(DescTable), [3]Light(CBV)
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	// 一般的な3D用構成: [0]Material(CBV), [1]Transform(CBV), [2]Texture(DescTable), [3]Light(CBV), [4]Camera(CBV)
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -47,7 +47,7 @@ void Obj3dCommon::CreateRootSignature(){
 
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParameters[1].Descriptor.ShaderRegister = 1;
+	rootParameters[1].Descriptor.ShaderRegister = 0;
 
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -58,6 +58,11 @@ void Obj3dCommon::CreateRootSignature(){
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[3].Descriptor.ShaderRegister = 2;
+
+	// [4] Camera (b3)
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[4].Descriptor.ShaderRegister = 3; // レジスタ番号 b3
 
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
 

@@ -19,45 +19,55 @@ void SpriteCommon::Draw(){
 }
 
 void SpriteCommon::CreateRootSignature(){
+	HRESULT hr = S_OK;
 
-	HRESULT hr;
+	// ルートシグネチャのフラグ設定
 	descriptionRootSignature.Flags =
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	descriptorRange[0].BaseShaderRegister = 0;
+	// --- テクスチャのレンジ設定 ---
+	descriptorRange[0].BaseShaderRegister = 0; // t0
 	descriptorRange[0].NumDescriptors = 1;
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[0].OffsetInDescriptorsFromTableStart =
 		D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	// --- ルートパラメータの設定 ---
+	// スプライトは通常3つあれば十分です
+	// [0]: マテリアル (Pixel Shader / b0)
+	// [1]: 座標変換行列 (Vertex Shader / b0)
+	// [2]: テクスチャ (Pixel Shader / t0)
+
+	// ★重要：SpriteCommon.h で rootParameters のサイズが [3] 以上あるか確認してください！
+	// D3D12_ROOT_PARAMETER rootParameters[3]; // ← ヘッダーを確認！
+
+	// [0] Material (b0)
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 
+	// [1] Transform (b0)
+	// ★修正点: Registerは 1 ではなく 0 です
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParameters[1].Descriptor.ShaderRegister = 1;
+	rootParameters[1].Descriptor.ShaderRegister = 0;
 
+	// [2] Texture (t0)
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges =
 		_countof(descriptorRange);
 
-	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[3].Descriptor.ShaderRegister = 2;
+	// ※ [3] (Light) はスプライトでは通常使わないため削除しました。
+	// もし使う場合は、ヘッダーの配列サイズを [4] に増やしてください。
 
+	// パラメータ配列をセット (要素数は 3 に設定)
 	descriptionRootSignature.pParameters = rootParameters;
-	descriptionRootSignature.NumParameters = _countof(rootParameters);
+	descriptionRootSignature.NumParameters = 3; // _countof(rootParameters) でも可ですが、3で固定します
 
 
-	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
-
-
+	// --- サンプラーの設定 ---
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -67,10 +77,11 @@ void SpriteCommon::CreateRootSignature(){
 	staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
 	staticSamplers[0].ShaderRegister = 0;
 	staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
-
+	// --- シリアライズと生成 ---
 	hr = D3D12SerializeRootSignature(&descriptionRootSignature,
 		D3D_ROOT_SIGNATURE_VERSION_1,&signatureBlob,
 		&errorBlob);
@@ -84,13 +95,7 @@ void SpriteCommon::CreateRootSignature(){
 		0,signatureBlob->GetBufferPointer(),signatureBlob->GetBufferSize(),
 		IID_PPV_ARGS(&rootSignature));
 	assert(SUCCEEDED(hr));
-
-
-
-#pragma endregion
-
 }
-
 void SpriteCommon::CreatePipelineState(){
 
 	HRESULT hr;
