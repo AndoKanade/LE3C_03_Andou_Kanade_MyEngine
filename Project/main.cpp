@@ -255,7 +255,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 	// 2. パーティクルグループの作成
 	// ※ "resources/circle.png" は実際にリソースフォルダに入れている画像パスに書き換えてください
 	const std::string groupName = "Circle";
-	ParticleManager::GetInstance()->CreateParticleGroup(groupName,"resource/uvChecker.png");
+	ParticleManager::GetInstance()->CreateParticleGroup(groupName,"resource/Circle.png");
 
 	// 3. エミッター (発生装置) の作成
 	// 引数: グループ名, 座標(Transform), 1回の発生数, 発生間隔(秒)

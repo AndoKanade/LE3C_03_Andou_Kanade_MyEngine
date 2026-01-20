@@ -1,10 +1,11 @@
 #include "ParticleManager.h"
 #include "TextureManager.h" // TextureManagerが必要になります
 #include"Camera.h"
+#include"Logger.h"
 #include <cassert>
 
 // シングルトン取得などは省略...
-
+using namespace Microsoft::WRL;
 // ■ static変数の定義
 ParticleManager* ParticleManager::instance = nullptr;
 
@@ -35,6 +36,11 @@ void ParticleManager::Initialize(DXCommon* dxCommon,SrvManager* srvManager){
 	// 2. ランダムエンジンの初期化
 	std::random_device seedGenerator;
 	randomEngine_.seed(seedGenerator());
+
+	CreateGraphicsPipeline();
+
+	// モデル生成（四角形の頂点バッファを作る）
+	CreateModel();
 }
 
 // ■ 追加: パーティクルグループの生成関数
@@ -193,8 +199,7 @@ void ParticleManager::Draw(const Matrix4x4& viewProjectionMatrix){
 	// ● プリミティブトポロジーを設定
 	// 板ポリゴン（4頂点）を描画するため、TRIANGLESTRIPを使用します
 	// (※インデックスバッファを作っている場合はTRIANGLELIST + DrawIndexedInstancedになります)
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	// ● VBVを設定
 	commandList->IASetVertexBuffers(0,1,&vertexBufferView_);
 
@@ -282,3 +287,164 @@ void ParticleManager::Emit(const std::string& name,const Vector3& position,uint3
 }
 
 
+void ParticleManager::CreateGraphicsPipeline(){
+	HRESULT hr = S_OK;
+
+	// ==========================================================
+	// 1. RootSignature の作成
+	// ==========================================================
+	D3D12_DESCRIPTOR_RANGE descriptorRangeTexture[1] = {};
+	descriptorRangeTexture[0].BaseShaderRegister = 0; // t0
+	descriptorRangeTexture[0].NumDescriptors = 1;
+	descriptorRangeTexture[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRangeTexture[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_DESCRIPTOR_RANGE descriptorRangeInstancing[1] = {};
+	descriptorRangeInstancing[0].BaseShaderRegister = 0; // t0 (VSで使う)
+	descriptorRangeInstancing[0].NumDescriptors = 1;
+	descriptorRangeInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRangeInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	// RootParameter設定 (Draw関数の設定順序と合わせる)
+	// [0]: テクスチャ (PixelShader)
+	// [1]: インスタンシングデータ (VertexShader)
+	D3D12_ROOT_PARAMETER rootParameters[2] = {};
+
+	// [0] Texture
+	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[0].DescriptorTable.pDescriptorRanges = descriptorRangeTexture;
+	rootParameters[0].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeTexture);
+
+	// [1] Instancing Data (StructuredBuffer)
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeInstancing;
+	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeInstancing);
+
+	// サンプラー設定
+	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
+	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
+	staticSamplers[0].ShaderRegister = 0;
+	staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	// ルートシグネチャ設定
+	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
+	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	descriptionRootSignature.pParameters = rootParameters;
+	descriptionRootSignature.NumParameters = _countof(rootParameters);
+	descriptionRootSignature.pStaticSamplers = staticSamplers;
+	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
+
+	// シリアライズ
+	ComPtr<ID3DBlob> signatureBlob;
+	ComPtr<ID3DBlob> errorBlob;
+	hr = D3D12SerializeRootSignature(&descriptionRootSignature,D3D_ROOT_SIGNATURE_VERSION_1,&signatureBlob,&errorBlob);
+	if(FAILED(hr)){
+		Logger::Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
+		assert(false);
+	}
+	// 生成
+	hr = dxCommon_->GetDevice()->CreateRootSignature(0,signatureBlob->GetBufferPointer(),signatureBlob->GetBufferSize(),IID_PPV_ARGS(&rootSignature_));
+	assert(SUCCEEDED(hr));
+
+
+	// ==========================================================
+	// 2. GraphicsPipelineState (PSO) の作成
+	// ==========================================================
+
+	// シェーダーコンパイル (Obj3dCommonに合わせて dxCommon_->CompileShader を使用)
+	// ※シェーダーファイル名は適宜変更してください
+	ComPtr<IDxcBlob> vertexShaderBlob = dxCommon_->CompileShader(L"resource/shader/Particle.VS.hlsl",L"vs_6_0");
+	assert(vertexShaderBlob != nullptr);
+	ComPtr<IDxcBlob> pixelShaderBlob = dxCommon_->CompileShader(L"resource/shader/Particle.PS.hlsl",L"ps_6_0");
+	assert(pixelShaderBlob != nullptr);
+
+	// InputLayout (Obj3dと同じでOK)
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+	};
+	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
+	inputLayoutDesc.pInputElementDescs = inputElementDescs;
+	inputLayoutDesc.NumElements = _countof(inputElementDescs);
+
+	// BlendState (【重要】パーティクル用に変更：加算合成の設定)
+	D3D12_BLEND_DESC blendDesc{};
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	// 加算合成 (光る表現)
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	// RasterizerState (カリングなし＝両面描画)
+	D3D12_RASTERIZER_DESC rasterizerDesc{};
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+
+	// DepthStencilState (【重要】Z書き込みをOFFにする)
+	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 書き込まない
+	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	// PSO生成設定
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
+	graphicsPipelineStateDesc.pRootSignature = rootSignature_.Get();
+	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
+	graphicsPipelineStateDesc.VS = {vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize()};
+	graphicsPipelineStateDesc.PS = {pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize()};
+	graphicsPipelineStateDesc.BlendState = blendDesc;
+	graphicsPipelineStateDesc.RasterizerState = rasterizerDesc;
+	graphicsPipelineStateDesc.DepthStencilState = depthStencilDesc;
+	graphicsPipelineStateDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+	graphicsPipelineStateDesc.NumRenderTargets = 1;
+	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	graphicsPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	graphicsPipelineStateDesc.SampleDesc.Count = 1;
+	graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	// 生成
+	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc,IID_PPV_ARGS(&graphicsPipelineState_));
+	assert(SUCCEEDED(hr));
+}
+
+// ■ 四角形の頂点データを作る関数
+void ParticleManager::CreateModel(){
+	// 頂点データ (4頂点で四角形を作る)
+	VertexData vertices[4] = {
+		// 左下
+		{{-1.0f, -1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+		// 左上
+		{{-1.0f,  1.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+		// 右下
+		{{ 1.0f, -1.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+		// 右上
+		{{ 1.0f,  1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+	};
+
+	// 頂点バッファの作成
+	vertexBuffer_ = dxCommon_->CreateBufferResource(sizeof(vertices));
+
+	// データを書き込む
+	VertexData* vertexData = nullptr;
+	vertexBuffer_->Map(0,nullptr,reinterpret_cast<void**>(&vertexData));
+	std::memcpy(vertexData,vertices,sizeof(vertices));
+	vertexBuffer_->Unmap(0,nullptr);
+
+	// ビューの作成
+	vertexBufferView_.BufferLocation = vertexBuffer_->GetGPUVirtualAddress();
+	vertexBufferView_.SizeInBytes = sizeof(vertices);
+	vertexBufferView_.StrideInBytes = sizeof(VertexData);
+}

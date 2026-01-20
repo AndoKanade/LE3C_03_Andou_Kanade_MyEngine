@@ -152,6 +152,9 @@
     <None Include="resource\shader\Object3d.VS.hlsl">
       <Filter>Resources\shader</Filter>
     </None>
+    <None Include="resource\shader\Particle.hlsli">
+      <Filter>Resources\shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -248,5 +251,13 @@
     <ResourceCompile Include="CG2_Temprate.rc">
       <Filter>Resources</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="resource\shader\Particle.PS.hlsl">
+      <Filter>Resources\shader</Filter>
+    </FxCompile>
+    <FxCompile Include="resource\shader\Particle.VS.hlsl">
+      <Filter>Resources\shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

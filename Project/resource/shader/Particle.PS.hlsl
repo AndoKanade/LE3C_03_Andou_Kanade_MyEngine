@@ -1,25 +1,9 @@
-#include"Particle.hlsli"
+#include "Particle.hlsli"
 
-struct Material
-{
-    float32_t4 color;
-    int32_t enableLighting;
-    float32_t4x4 uvTransform;
-    
-};
-
-struct DirectionalLight
-{
-    float32_t4 color;
-    float32_t3 direction;
-    float intensity;
-    
-};
-
-ConstantBuffer<Material> gMaterial : register(b0);
+// テクスチャとサンプラーのみ定義します
+// (C++のルートシグネチャ設定と一致させます)
 Texture2D<float32_t4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b2);
 
 struct PixelShaderOutput
 {
@@ -29,39 +13,17 @@ struct PixelShaderOutput
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-   
-    float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
-    float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     
-    // ライティング有効の場合
-    if (gMaterial.enableLighting != 0)
-    {
-        float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
-        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-
-        // rgb に input.color.rgb を掛ける
-        output.color.rgb = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity * input.color.rgb; // ← 末尾に追加
-
-        // alpha に input.color.a を掛ける
-        output.color.a = gMaterial.color.a * textureColor.a * input.color.a; // ← 末尾に追加
-    }
-    // ライティング無効の場合
-    else
-    {
-        // 全体に input.color を掛ける
-        output.color = gMaterial.color * textureColor * input.color; // ← 末尾に追加
-    }
+    // 1. テクスチャの色を取得
+    // UV変換行列(uvTransform)も、個別のパーティクルでは通常使わないので単純に input.texcoord を使います
+    float32_t4 textureColor = gTexture.Sample(gSampler, input.texcoord);
     
-    // --- 以下は変更なし ---
-    if (textureColor.a <= 0.5f)
-    {
-        discard;
-    }
+    // 2. 最終的な色を決定
+    // テクスチャの色 × 頂点シェーダーから来たパーティクルの色(input.color)
+    output.color = textureColor * input.color;
     
-    if (textureColor.a == 0.0f)
-    {
-        discard;
-    }
+    // 3. 透明部分の破棄 (Discard)
+    // アルファが0なら描画しない
     if (output.color.a == 0.0f)
     {
         discard;

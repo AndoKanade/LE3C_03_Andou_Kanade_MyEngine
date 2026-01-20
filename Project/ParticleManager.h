@@ -76,6 +76,8 @@ public: // --- メンバ関数 ---
     // どのグループ(name)から出すかを指定する必要があります
     void Emit(const std::string& name,const Vector3& position,uint32_t count);
 
+
+
 private: // --- メンバ変数 ---
 
     DXCommon* dxCommon_ = nullptr;
@@ -94,5 +96,18 @@ private: // --- メンバ変数 ---
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
 
     Particle MakeNewParticle(const Vector3& translate);
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer_;
+
+    // 頂点データの構造体 (もし定義してなければ)
+    struct VertexData{
+        Vector4 position;
+        Vector2 texcoord;
+        Vector3 normal;
+    };   
+    
+    void CreateGraphicsPipeline();
+    void CreateModel();
+
 
 };
