@@ -10,6 +10,18 @@ void Obj3dCommon::Initialize(DXCommon* dxcommon){
 
 	// パイプライン生成（この中でルートシグネチャ生成も呼ばれます）
 	CreateGraphicsPipelineState();
+	size_t sizeInBytes = (sizeof(CameraForGPU) + 0xff) & ~0xff;
+
+	// 2. リソース作成
+	cameraResource_ = dxCommon_->CreateBufferResource(sizeInBytes);
+
+	// 3. データを書き込めるようにアドレスを取得 (Map)
+	HRESULT hr = cameraResource_->Map(0,nullptr,reinterpret_cast<void**>(&cameraData_));
+	assert(SUCCEEDED(hr));
+
+	// 4. 初期値を入れておく
+	cameraData_->worldPosition = {0.0f, 0.0f, 0.0f};
+
 }
 
 // 描画共通設定（描画ループの前に一度だけ呼ぶ）
@@ -24,6 +36,17 @@ void Obj3dCommon::Draw(){
 
 	// トポロジ設定（三角形リスト）
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	if(cameraResource_){
+		// 現在のカメラ座標を更新 (Map済みデータに書き込み)
+		if(defaultCamera_){
+			cameraData_->worldPosition = defaultCamera_->GetTranslate();
+		}
+
+		// GPUにアドレスを渡す
+		commandList->SetGraphicsRootConstantBufferView(4,cameraResource_->GetGPUVirtualAddress());
+	}
+
 }
 
 void Obj3dCommon::CreateRootSignature(){
@@ -38,8 +61,8 @@ void Obj3dCommon::CreateRootSignature(){
 
 
 	// 1. ルートパラメータの設定
-	// 一般的な3D用構成: [0]Material(CBV), [1]Transform(CBV), [2]Texture(DescTable), [3]Light(CBV)
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	// 一般的な3D用構成: [0]Material(CBV), [1]Transform(CBV), [2]Texture(DescTable), [3]Light(CBV), [4]Camera(CBV)
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -58,6 +81,11 @@ void Obj3dCommon::CreateRootSignature(){
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[3].Descriptor.ShaderRegister = 2;
+
+	// [4] Camera (b3)
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[4].Descriptor.ShaderRegister = 3; // レジスタ番号 b3
 
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
 

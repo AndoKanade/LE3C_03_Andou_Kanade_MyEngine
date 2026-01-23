@@ -111,6 +111,7 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath,const std::
 		}
 		// 面情報 (f)
 		else if(identifier == "f"){
+			// まず3つの頂点を読み込む (三角形の1つ目)
 			VertexData triangle[3];
 			for(int32_t faceVertex = 0; faceVertex < 3; ++faceVertex){
 				std::string vdef;
@@ -131,10 +132,35 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath,const std::
 				Vector3 normal = normals[elementIndices[2] - 1];
 				triangle[faceVertex] = {position, texcoord, normal};
 			}
-			// 逆順登録 (カリング対応)
+
+			// 1つ目の三角形を登録 (逆順登録: 2 -> 1 -> 0)
 			modelData.vertices.push_back(triangle[2]);
 			modelData.vertices.push_back(triangle[1]);
 			modelData.vertices.push_back(triangle[0]);
+
+			std::string vdef4;
+			if(s >> vdef4){
+				// 4つ目があったので解析する
+				std::istringstream vstream(vdef4);
+				uint32_t elementIndices[3];
+				for(int32_t element = 0; element < 3; ++element){
+					std::string index;
+					std::getline(vstream,index,'/');
+					elementIndices[element] = index.empty()?0:std::stoi(index);
+				}
+
+				Vector4 position = positions[elementIndices[0] - 1];
+				Vector2 texcoord = texcoords[elementIndices[1] - 1];
+				Vector3 normal = normals[elementIndices[2] - 1];
+				VertexData v4 = {position, texcoord, normal};
+
+				// 2つ目の三角形を登録 (四角形を分割する)
+				// 構成: 元の[0], [2] と 新しい[3] を結ぶ
+				// 逆順登録なので [3] -> [2] -> [0] の順でプッシュ
+				modelData.vertices.push_back(v4);          // v3 (4番目)
+				modelData.vertices.push_back(triangle[2]); // v2 (3番目)
+				modelData.vertices.push_back(triangle[0]); // v0 (1番目)
+			}
 		}
 		// マテリアル読み込み (mtllib)
 		else if(identifier == "mtllib"){
@@ -165,14 +191,21 @@ void Model::CreateVertexData(){
 }
 
 void Model::CreateMaterialData(){
-	// リソース作成
-	materialResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(Material));
+	// ■■■ 1. バッファサイズの計算 (256バイトアライメント) ■■■
+	// これをしないと、GPUが「データが足りない！(範囲外アクセス)」とエラーを出します
+	size_t sizeInBytes = (sizeof(Material) + 0xff) & ~0xff;
+
+	// リソース作成 (計算した sizeInBytes を使う)
+	materialResource = modelCommon_->GetDxCommon()->CreateBufferResource(sizeInBytes);
 
 	// データを書き込むためのアドレスを取得
 	materialResource->Map(0,nullptr,reinterpret_cast<void**>(&materialData));
 
-	// 初期値設定 (白, ライティング有効, UV変換なし)
+	// 初期値設定
 	materialData->color = Vector4(1.0f,1.0f,1.0f,1.0f);
 	materialData->enableLighting = 1;
 	materialData->uvTransform = MakeIdentity4x4();
+
+	// ■■■ 2. shininess の初期化を追加 ■■■
+	materialData->shininess = 50.0f; // 輝きの鋭さ (とりあえず50.0f)
 }
