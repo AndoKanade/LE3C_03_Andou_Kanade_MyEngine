@@ -1,4 +1,7 @@
 #include "WinAPI.h"
+#include"imgui_impl_win32.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,UINT msg,WPARAM wParam,LPARAM lPalam);
 
 LRESULT CALLBACK WinAPI::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
                                     LPARAM lparam) {
@@ -60,3 +63,4 @@ void WinAPI::Finalize() {
 
   CoUninitialize();
 }
+

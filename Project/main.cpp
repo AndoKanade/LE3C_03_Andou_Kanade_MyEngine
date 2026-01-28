@@ -306,15 +306,25 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 
 			input->Update();
 
-			// --- カメラ移動処理 (WASD) ---
+			// --- カメラ取得 ---
 			Camera* activeCamera = CameraManager::GetInstance()->GetActiveCamera();
+
 			if(activeCamera){
-				const float kCameraSpeed = 0.1f;
+				// 現在の座標を取得
 				Vector3 translate = activeCamera->GetTranslate();
-				if(input->PushKey(DIK_W)){ translate.z += kCameraSpeed; }
-				if(input->PushKey(DIK_S)){ translate.z -= kCameraSpeed; }
-				if(input->PushKey(DIK_A)){ translate.x -= kCameraSpeed; }
-				if(input->PushKey(DIK_D)){ translate.x += kCameraSpeed; }
+
+
+				// ImGuiのウィンドウを作る
+#ifdef USE_IMGUI
+				ImGui::Begin("Camera Control");
+
+
+				ImGui::DragFloat3("Position",&translate.x,0.1f);
+
+				// ウィンドウの終わり
+				ImGui::End();
+#endif
+
 				activeCamera->SetTranslate(translate);
 			}
 
@@ -332,7 +342,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 				Logger::Log("Trigger space\n");
 			}
 
-			// 2. ImGuiの更新終了 (描画データの生成)
+			// 2. ImGuiの更新終了
 			ImGuiManager::GetInstance()->End();
 
 			// -----------------------------------------
@@ -345,10 +355,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int){
 			object3dCommon->Draw();
 			object3d->Draw();
 
-			// 2D描画などはここで...
-
 			// 3. ImGuiの描画実行
-			// ※ImGuiManager::Draw()内部でヒープセットとRenderDrawDataが行われます
 			ImGuiManager::GetInstance()->Draw();
 
 			dxCommon->PostDraw();
