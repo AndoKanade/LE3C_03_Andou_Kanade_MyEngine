@@ -44,17 +44,24 @@ void ImGuiManager::Initialize(WinAPI* winApi,DXCommon* dxCommon){
     srvHeap_ = srvManager->GetDescriptorHeap();
 
     // 6. DirectX12周りの初期化
-    ImGui_ImplDX12_Init(
-        dxCommon_->GetDevice(),                                  // デバイス
-        static_cast<int>(dxCommon_->GetSwapChainResourcesNum()), // バックバッファの数 (通常2)
-        DXGI_FORMAT_R8G8B8A8_UNORM,                              // 描画対象のフォーマット
-        srvHeap_,                                                // ディスクリプタヒープ
-        srvManager->GetCPUDescriptorHandle(srvIndex_),           // 確保した場所のCPUハンドル
-        srvManager->GetGPUDescriptorHandle(srvIndex_)            // 確保した場所のGPUハンドル
-    );
+    ImGui_ImplDX12_InitInfo initInfo = {};
 
-	ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->AddFontDefault();
+    // 必須情報のセット
+    initInfo.Device = dxCommon_->GetDevice();
+    initInfo.CommandQueue = dxCommon_->GetCommandQueue(); // ★DXCommonに追加したゲッターを使う
+    initInfo.NumFramesInFlight = static_cast<int>(dxCommon_->GetSwapChainResourcesNum());
+    initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    initInfo.DSVFormat = DXGI_FORMAT_UNKNOWN; // ImGuiで深度バッファを使わない場合はUNKNOWNでOK
+
+    // ヒープの設定
+    initInfo.SrvDescriptorHeap = srvHeap_;
+
+    // ★重要: 従来の「1個だけ確保して渡す」方式の場合は Legacy~ に代入する
+    initInfo.LegacySingleSrvCpuDescriptor = srvManager->GetCPUDescriptorHandle(srvIndex_);
+    initInfo.LegacySingleSrvGpuDescriptor = srvManager->GetGPUDescriptorHandle(srvIndex_);
+
+    // 初期化実行
+    ImGui_ImplDX12_Init(&initInfo);
 }
 
 // ==========================================================================

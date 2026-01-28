@@ -66,7 +66,6 @@ public:
 	void InitViewportRect();
 	void InitScissorRect();
 	void CreateDXCCompiler();
-	void InitImGui();
 
 	void PreDraw();
 	void PostDraw();
@@ -101,6 +100,8 @@ public:
 	size_t GetSwapChainResourcesNum() const{
 		return swapChainResources.size();
 	}
+
+	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue.Get(); }
 
 private:
 	WinAPI* winApi_ = nullptr;
