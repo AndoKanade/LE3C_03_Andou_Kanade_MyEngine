@@ -3,25 +3,25 @@
 
 int WINAPI WinMain(HINSTANCE,HINSTANCE,LPSTR,int){
 	D3DResourceLeakChecker leakCheck;
-	Application* app = new Application();
+	Framework* game = new Application();
 
-	app->Initialize();
+	// 初期化
+	game->Initialize();
 
+	// ゲームループ
 	while(true){
-		if(app->ProcessMessage()){
+		if(game->IsEndRequest()){
 			break;
 		}
 
-		// 更新処理
-		app->Update();
-
-		// 描画処理
-		app->Draw();
+		// 更新と描画
+		game->Update();
+		game->Draw();
 	}
 
 	// 終了処理
-	app->Finalize();
+	game->Finalize();
 
-	delete app;
+	delete game;
 	return 0;
 }
