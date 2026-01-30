@@ -6,6 +6,9 @@
 #include "WinAPI.h"
 #include <dinput.h>
 
+#pragma comment(lib, "dinput8.lib")
+#pragma comment(lib, "dxguid.lib")
+
 class Input {
   // public:
   //   template <class T> using Comptr = Microsoft::WRL::ComPtr<T>;
