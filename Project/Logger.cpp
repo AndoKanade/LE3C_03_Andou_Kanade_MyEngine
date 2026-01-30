@@ -1,33 +1,44 @@
 #include "Logger.h"
-#include <Windows.h>
+#include <debugapi.h> // OutputDebugStringA用
+#include <dbghelp.h>
+#include <strsafe.h>
 
-namespace Logger {
-void Log(const std::string &message) {
+#pragma comment(lib, "Dbghelp.lib")
 
-  std::filesystem::create_directory("logs");
-  // 現在時刻を取得(ロンドン時刻)
-  std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-
-  // ログファイルの名前を秒に変換
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>
-      nowSeconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
-
-  // 日本時間に変換
-  std::chrono::zoned_time localTime{std::chrono::current_zone(), nowSeconds};
-
-  // formatを使って年月火_時分秒に変換
-  std::string dateString = std::format("{:%Y%m%d_%H%M%S}", localTime);
-
-  // 時刻を使ってファイル名を決定
-  std::string logFilePath = std::string("logs/") + dateString + ".log";
-
-  // ファイルを作って書き込み準備
-  std::ofstream logStream(logFilePath);
+// クラスのメンバ関数として定義する (namespace { } は不要)
+void Logger::Log(const std::string& message){
+	// シンプルにVisual Studioの出力ウィンドウに出す
+	OutputDebugStringA(message.c_str());
 }
 
-void Log(std::ostream &os, const std::string &message) {
-  os << message << std::endl;
-  OutputDebugStringA(message.c_str());
-}
+// ダンプ出力機能
+LONG WINAPI Logger::ExportDump(EXCEPTION_POINTERS* exception){
+	SYSTEMTIME time;
+	GetLocalTime(&time);
+	wchar_t filePath[MAX_PATH] = {0};
 
-} // namespace Logger
+	// Dumpsフォルダ作成
+	CreateDirectory(L"./Dumps",nullptr);
+
+	// ファイル名決定
+	StringCchPrintfW(filePath,MAX_PATH,L"./Dumps/%04d-%02d%02d-%02d%02d.dmp",
+		time.wYear,time.wMonth,time.wDay,time.wHour,time.wMinute);
+
+	// ファイル作成
+	HANDLE dumpFileHandle = CreateFile(filePath,GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_WRITE | FILE_SHARE_READ,0,CREATE_ALWAYS,0,0);
+
+	MINIDUMP_EXCEPTION_INFORMATION minidumpinformation{0};
+	minidumpinformation.ThreadId = GetCurrentThreadId();
+	minidumpinformation.ExceptionPointers = exception;
+	minidumpinformation.ClientPointers = TRUE;
+
+	// ダンプ書き込み
+	MiniDumpWriteDump(GetCurrentProcess(),GetCurrentProcessId(),dumpFileHandle,
+		MiniDumpNormal,&minidumpinformation,nullptr,nullptr);
+
+	// ハンドルを閉じるのを忘れずに
+	CloseHandle(dumpFileHandle);
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}

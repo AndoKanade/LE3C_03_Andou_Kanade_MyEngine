@@ -15,7 +15,6 @@
 #pragma comment(lib, "dxgi.lib")
 
 using namespace Microsoft::WRL;
-using namespace Logger;
 using namespace StringUtility;
 void DXCommon::Initialize(WinAPI* winApi){
 	InitializeFixFPS();
@@ -73,7 +72,7 @@ void DXCommon::InitDevice(){
 
 		// ソフトウェアアダプター出なければ採用
 		if(!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)){
-			Log(std::format("Use Adapter : {}\n",
+			Logger::Log(std::format("Use Adapter : {}\n",
 				ConvertString(adapterDesc.Description)));
 			break;
 		}
@@ -97,14 +96,14 @@ void DXCommon::InitDevice(){
 
 		if(SUCCEEDED(hr)){
 			// 生成できたのでループを抜ける
-			Log(std::format("FeatureLevels : {}\n",featureLevelStrings[i]));
+			Logger::Log(std::format("FeatureLevels : {}\n",featureLevelStrings[i]));
 			break;
 		}
 	}
 
 	// 生成がうまくいかなかったので起動しない
 	assert(SUCCEEDED(hr));
-	Log("Complete create D3D12Device!!\n");
+	Logger::Log("Complete create D3D12Device!!\n");
 #pragma region エラー放置しない処理
 #ifdef _DEBUG
 	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
@@ -322,7 +321,7 @@ DXCommon::CreateDiscriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,
 
 Microsoft::WRL::ComPtr<IDxcBlob>
 DXCommon::CompileShader(const std::wstring& filePath,const wchar_t* profile){
-	Log(StringUtility::ConvertString(std::format(
+	Logger::Log(StringUtility::ConvertString(std::format(
 		L"Begin CompileShader, path:{}, profile:{}\n",filePath,profile)));
 
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
@@ -361,7 +360,7 @@ DXCommon::CompileShader(const std::wstring& filePath,const wchar_t* profile){
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS,IID_PPV_ARGS(&shaderError),nullptr);
 	if(shaderError != nullptr && shaderError->GetStringLength() != 0){
-		Log(shaderError->GetStringPointer());
+		Logger::Log(shaderError->GetStringPointer());
 
 		assert(false);
 	}
@@ -371,7 +370,7 @@ DXCommon::CompileShader(const std::wstring& filePath,const wchar_t* profile){
 		nullptr);
 	assert(SUCCEEDED(hr));
 
-	Log(StringUtility::ConvertString(std::format(
+	Logger::Log(StringUtility::ConvertString(std::format(
 		L"Compile Succeeded, path:{}, profile:{}\n",filePath,profile)));
 
 	return shaderBlob;

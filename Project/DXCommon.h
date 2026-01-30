@@ -10,6 +10,11 @@
 #include <string>
 #include <wrl.h>
 
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "dxcompiler.lib")
+
 class DXCommon{
 public:
 #pragma region メンバ変数
