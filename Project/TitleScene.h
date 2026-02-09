@@ -34,4 +34,6 @@ private:
 
 	Sprite* sprite_ = nullptr; // 表示するスプライト
 	SpriteCommon* spriteCommon_ = nullptr; // 保存用
+
+	Vector4 spriteColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
 };

@@ -6,8 +6,6 @@ struct TransformationMatrix
     float32_t4x4 World;
 };
 
-// SpriteCommonの設定に合わせてレジスタを指定
-// b0 = Material(Pixel用), b1 = Transform(Vertex用) のはずなので b1
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b1);
 
 struct VertexShaderInput
@@ -21,11 +19,13 @@ VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
     
-    // 座標変換 (ここがメイン)
+    // 座標変換
     output.position = mul(input.position, gTransformationMatrix.WVP);
     
-    // テクスチャ座標はそのまま渡す
+    // UV座標を渡す
     output.texcoord = input.texcoord;
+    
+    // ★ normalの計算は削除しました（hlsliから消したため）
     
     return output;
 }
