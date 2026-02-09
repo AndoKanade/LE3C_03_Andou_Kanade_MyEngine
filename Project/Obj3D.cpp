@@ -6,7 +6,7 @@
 #include "Math.h"
 #include <cassert>
 #include "ModelManager.h"
-#include"Camera.h"
+#include "Camera.h"
 
 void Obj3D::Initialize(Obj3dCommon* object3dCommon){
 	this->object3dCommon = object3dCommon;
@@ -20,26 +20,48 @@ void Obj3D::Initialize(Obj3dCommon* object3dCommon){
 	CreateDirectionalLightData();
 }
 
+// ★追加: 親をセットする関数
+void Obj3D::SetParent(const std::weak_ptr<Obj3D>& parent){
+	this->parent_ = parent;
+}
+
 void Obj3D::Update(){
-	// 1. ワールド行列の計算 (Scale -> Rotate -> Translate)
-	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+	// 1. ローカル行列の計算 (Scale -> Rotate -> Translate)
+	// 親から見た自分自身の行列です
+	Matrix4x4 localMatrix = MakeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+
+	// 2. ワールド行列の初期化
+	Matrix4x4 worldMatrix = localMatrix;
+
+	// ★ここが重要: 親がいるかどうかの確認
+	// weak_ptr は直接使えないので、lock() して shared_ptr に変換してみる
+	std::shared_ptr<Obj3D> parentPtr = parent_.lock();
+
+	if(parentPtr){
+		// lock() が成功した = 親が生きていた！
+		// 親のワールド行列を取得して、自分のローカル行列に掛け合わせる
+		// 行列の計算順序: World = Local * ParentWorld
+		worldMatrix = Multiply(localMatrix,parentPtr->GetWorldMatrix());
+	}
+	// lock() が失敗した(nullptr) = 親がいない、または親が削除済み
+	// その場合は worldMatrix = localMatrix のまま進むのでエラーにならない！
 
 
+	// 3. カメラ行列との合成 (WVP)
 	Matrix4x4 worldViewProjectionMatrix;
-	Camera* camera = object3dCommon->GetDefaultCamera();
+	// メンバ変数の camera を優先し、なければデフォルトカメラを使う
+	Camera* cameraPtr = this->camera?this->camera:object3dCommon->GetDefaultCamera();
 
-
-	if(camera){
-		const Matrix4x4& viewProjectionMatrix = camera->GetViewProjectionMatrix();
+	if(cameraPtr){
+		const Matrix4x4& viewProjectionMatrix = cameraPtr->GetViewProjectionMatrix();
 		worldViewProjectionMatrix = Multiply(worldMatrix,viewProjectionMatrix);
 	} else{
 		worldViewProjectionMatrix = worldMatrix;
 	}
 
-	// GPU上のバッファに書き込み
+	// 4. GPU上のバッファに書き込み
 	transformationMatrixData->WVP = worldViewProjectionMatrix;
-	transformationMatrixData->World = worldMatrix;
-
+	transformationMatrixData->World = worldMatrix; // 親子関係が反映されたワールド行列を書き込む
 }
 
 void Obj3D::Draw(){

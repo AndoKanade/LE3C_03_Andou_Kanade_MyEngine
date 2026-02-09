@@ -6,17 +6,15 @@
 #include "CameraManager.h"
 #include "ImGuiManager.h"
 
-// ★追加: コンストラクタ (LNK2001エラー対策)
+// コンストラクタ
 GameScene::GameScene() = default;
 
-// ★変更: デストラクタ (C2027エラー対策)
-// ここで unique_ptr の中身 (Obj3DやParticleEmitter) が自動削除されます。
+// デストラクタ
 GameScene::~GameScene(){}
 
 // 終了処理
 void GameScene::Finalize(){
-	// ★変更: delete を全て削除！
-	// unique_ptr が勝手にメモリ解放してくれるので、何も書かなくてOKです。
+	// shared_ptr / unique_ptr が自動解放してくれるので空でOK
 }
 
 // 初期化
@@ -27,7 +25,7 @@ void GameScene::Initialize(Obj3dCommon* object3dCommon,Input* input,SpriteCommon
 	spriteCommon_ = spriteCommon;
 
 	/// -------------------------------------------
-	/// 1. リソースのロード (テクスチャ・モデル・音)
+	/// 1. リソースのロード
 	/// -------------------------------------------
 	TextureManager::GetInstance()->LoadTexture("resource/uvChecker.png");
 	TextureManager::GetInstance()->LoadTexture("resource/monsterball.png");
@@ -46,28 +44,33 @@ void GameScene::Initialize(Obj3dCommon* object3dCommon,Input* input,SpriteCommon
 	/// 2. オブジェクトの生成と初期化
 	/// -------------------------------------------
 
-	// 地面 (Plane)
-	// ★変更: make_unique に置き換え
-	planeObj_ = std::make_unique<Obj3D>();
+	// ■ 親: 地面 (Plane)
+	// ★変更: make_shared で生成 (weak_ptrで参照される側は shared_ptr 必須)
+	planeObj_ = std::make_shared<Obj3D>();
 	planeObj_->Initialize(object3dCommon_);
 	planeObj_->SetModel("plane.obj");
 
-	// 柵 (Fence)
-	// ★変更: make_unique に置き換え
-	fenceObj_ = std::make_unique<Obj3D>();
+	// ■ 子: 柵 (Fence)
+	// ★変更: make_shared で生成
+	fenceObj_ = std::make_shared<Obj3D>();
 	fenceObj_->Initialize(object3dCommon_);
 	fenceObj_->SetModel("fence.obj");
+
+	// ★追加: 親子付け (EX課題)
+	// これで Fence は Plane の動きについていくようになります
+	fenceObj_->SetParent(planeObj_);
+
+	// 座標設定 (親である Plane からの相対座標になります)
 	fenceObj_->SetTranslate({2.0f, 0.0f, 0.0f});
 
-	// パーティクルエミッタ
+
+	// パーティクルエミッタ (ここは親を持たないので unique_ptr のままでOK)
 	Transform emitterConfig;
 	emitterConfig.scale = {1.0f, 1.0f, 1.0f};
-
-	// ★変更: make_unique に置き換え (引数はそのまま渡せます)
 	particleEmitter_ = std::make_unique<ParticleEmitter>("Circle",emitterConfig,10,0.2f);
 
 	/// -------------------------------------------
-	/// 3. カメラの設定
+	/// 3. カメラの設定 (元のコードのまま)
 	/// -------------------------------------------
 	CameraManager::GetInstance()->CreateCamera("default");
 	auto* defaultCamera = CameraManager::GetInstance()->GetCamera("default");
@@ -84,10 +87,10 @@ void GameScene::Update(){
 	if(planeObj_){ planeObj_->Update(); }
 	if(fenceObj_){ fenceObj_->Update(); }
 
-	// パーティクルなど他の更新があればここに記述
+	// パーティクルの更新
 	if(particleEmitter_){ particleEmitter_->Update(); }
 
-	// BGM再生 (スペースキー)
+	// BGM再生
 	if(input_->TriggerKey(DIK_SPACE)){
 		if(!SoundManager::GetInstance()->IsPlaying(kBgmPath_)){
 			SoundManager::GetInstance()->PlayAudio(kBgmPath_,0.5f,true);
@@ -104,6 +107,13 @@ void GameScene::Update(){
 		Vector3 translate = activeCamera->GetTranslate();
 		ImGui::DragFloat3("Camera Pos",&translate.x,0.1f);
 		activeCamera->SetTranslate(translate);
+
+		// ★追加: 親(Plane)を動かして、親子関係を確認できるようにしておく
+		if(planeObj_){
+			Vector3 pPos = planeObj_->GetTranslate();
+			ImGui::DragFloat3("Parent(Plane) Pos",&pPos.x,0.1f);
+			planeObj_->SetTranslate(pPos);
+		}
 
 		ImGui::End();
 	}

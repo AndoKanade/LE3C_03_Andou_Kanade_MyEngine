@@ -39,8 +39,8 @@ private:
 
 	// --- ゲームオブジェクト (このシーンが所有するもの) ---
 	// ★変更: 所有権を持つ変数は unique_ptr にする
-	std::unique_ptr<Obj3D> planeObj_;
-	std::unique_ptr<Obj3D> fenceObj_;
+	std::shared_ptr<Obj3D> planeObj_;
+	std::shared_ptr<Obj3D> fenceObj_;
 	std::unique_ptr<ParticleEmitter> particleEmitter_;
 
 	// --- 設定・リソース・フラグ ---
